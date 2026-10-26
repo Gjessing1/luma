@@ -8,5 +8,3 @@ Open work only, in priority order.
 - [ ] Make an off-host backup of the signing key and its credentials; add the
       persistent wallpaper library to the household backup plan.
 - [ ] Add separate home/lock playlists.
-- [ ] Explore an Android live-wallpaper service for battery-conscious parallax,
-      particles and local video. Keep Samsung's proprietary effects user controlled.

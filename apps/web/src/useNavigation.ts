@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-type Tab = 'library' | 'playlist' | 'schedule';
+type Tab = 'library' | 'playlist' | 'schedule' | 'live';
 interface Screen {
   tab: Tab;
   selected: string | null;
@@ -8,7 +8,7 @@ interface Screen {
 function restoredScreen(): Screen {
   const saved = localStorage.getItem('luma.tab');
   return {
-    tab: saved === 'playlist' || saved === 'schedule' ? saved : 'library',
+    tab: saved === 'playlist' || saved === 'schedule' || saved === 'live' ? saved : 'library',
     selected: localStorage.getItem('luma.preview'),
   };
 }

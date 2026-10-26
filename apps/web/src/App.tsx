@@ -12,6 +12,7 @@ import { useNavigation } from './useNavigation';
 import { appShell } from './android-shell';
 import type { PublishedApp } from './app-update';
 import { AppUpdateNotice } from './AppUpdateNotice';
+import { LiveWallpaperSettings } from './LiveWallpaperSettings';
 import { RotationSettings } from './RotationSettings';
 import { WallpaperDetail } from './WallpaperDetail';
 import {
@@ -147,6 +148,7 @@ export function App() {
               ['library', '▦', 'Library'],
               ['playlist', '◫', 'My playlist'],
               ['schedule', '◷', 'Schedule'],
+              ['live', '✧', 'Live wallpaper'],
             ] as const
           ).map(([key, icon, title]) => (
             <button
@@ -186,13 +188,24 @@ export function App() {
         <AppUpdateNotice />
         <section className="intro">
           <div>
-            <h1>{tab === 'library' ? 'Library' : tab === 'playlist' ? 'Playlist' : 'Schedule'}</h1>
+            <h1>
+              {
+                {
+                  library: 'Library',
+                  playlist: 'Playlist',
+                  schedule: 'Schedule',
+                  live: 'Live wallpaper',
+                }[tab]
+              }
+            </h1>
             <p>
               {tab === 'library'
                 ? 'Add photos and choose wallpapers for your phone.'
                 : tab === 'playlist'
                   ? 'Choose the wallpapers to rotate on this phone.'
-                  : 'Set when this phone changes wallpaper.'}
+                  : tab === 'live'
+                    ? 'Choose an animated background for your home screen.'
+                    : 'Set when this phone changes wallpaper.'}
             </p>
           </div>
           <button
@@ -226,7 +239,16 @@ export function App() {
             {notice}
           </div>
         )}
-        {tab === 'schedule' ? (
+        {tab === 'live' ? (
+          <LiveWallpaperSettings
+            state={native}
+            busy={busy}
+            run={(action) => {
+              void run(action);
+            }}
+            refreshNative={setNative}
+          />
+        ) : tab === 'schedule' ? (
           <RotationSettings
             config={config}
             setConfig={setConfig}

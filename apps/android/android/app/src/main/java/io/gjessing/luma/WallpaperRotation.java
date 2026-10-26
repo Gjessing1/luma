@@ -94,6 +94,7 @@ final class WallpaperRotation {
         prefs(context).edit().putLong("lastApplied", System.currentTimeMillis()).putString("lastId", id).remove("error").apply();
     }
     static void advance(Context context) throws Exception {
+        if (LiveWallpaperSettings.pauseHomeRotation(context)) return;
         JSONObject config = config(context);
         if (config == null || config.getJSONArray("ids").length() == 0) throw new Exception("Save a playlist first");
         JSONArray ids = config.getJSONArray("ids");
@@ -115,6 +116,8 @@ final class WallpaperRotation {
         if (config != null) state.put("config", config);
         state.put("model", android.os.Build.MODEL);
         state.put("supportsStyles", true);
+        state.put("supportsLiveWallpaper", true);
+        state.put("live", LiveWallpaperSettings.state(context));
         for (String key : new String[]{"nextAt", "lastApplied"}) if (prefs.contains(key)) state.put(key, prefs.getLong(key, 0));
         for (String key : new String[]{"error", "lastId"}) if (prefs.contains(key)) state.put(key, prefs.getString(key, ""));
         return state;

@@ -1272,3 +1272,117 @@ summary {
     padding-bottom: max(10px, var(--inset-bottom));
   }
 }
+
+.live-scenes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 24px;
+}
+.live-scene-card {
+  padding: 10px;
+  text-align: left;
+  min-width: 0;
+}
+.live-scene-card[aria-pressed='true'] {
+  border-color: var(--mint);
+}
+.live-scene-card strong,
+.live-scene-card > span:last-child {
+  display: block;
+  margin: 10px 0;
+}
+.live-scene-card > span:last-child {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.live-art {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  height: 180px;
+  border-radius: 6px;
+  background: #050d20;
+}
+.live-aurora {
+  background: radial-gradient(ellipse at 65% 80%, #43789b, transparent 50%), #050d20;
+}
+.live-aurora i {
+  position: absolute;
+  inset: 20% -20%;
+  transform: rotate(-25deg);
+  border-radius: 50%;
+  border-top: 18px solid #71e5ab88;
+  filter: blur(9px);
+}
+.live-aurora i:nth-child(2) {
+  top: 45%;
+  border-color: #a490e9;
+}
+.live-aurora i:nth-child(3) {
+  top: 70%;
+}
+.live-stars {
+  background: radial-gradient(ellipse at 80% 90%, #253e62, #030815);
+}
+.live-stars i {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: white;
+  border-radius: 50%;
+  left: 30%;
+  top: 25%;
+  box-shadow:
+    60px 30px white,
+    -20px 85px #9dbad3,
+    90px 100px white,
+    18px 55px #9dbad3,
+    110px -10px white,
+    -34px 40px white,
+    50px 115px white;
+}
+.live-stars i:nth-child(2) {
+  left: 60%;
+  top: 10%;
+  opacity: 0.5;
+}
+.live-weather {
+  background: linear-gradient(#386b97, #d2b88c);
+}
+.live-weather i {
+  position: absolute;
+  width: 80%;
+  height: 80%;
+  background: #294a5b;
+  transform: rotate(45deg);
+  top: 70%;
+  left: -20%;
+  border-radius: 8px;
+}
+.live-weather i:nth-child(2) {
+  left: 35%;
+  top: 55%;
+  background: #476578;
+}
+.live-weather i:nth-child(3) {
+  width: 35px;
+  height: 35px;
+  top: 20%;
+  left: 65%;
+  border-radius: 50%;
+  background: #ffe4a2;
+}
+@media (max-width: 760px) {
+  .live-scenes {
+    grid-template-columns: 1fr;
+  }
+  .live-art {
+    height: 160px;
+  }
+  nav button {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}

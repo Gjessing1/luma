@@ -1,3 +1,4 @@
+import type { LiveWallpaperConfig } from '@luma/core/live-wallpaper';
 import {
   defaultRotation,
   migrateRotation,
@@ -9,6 +10,13 @@ import {
 
 export interface NativeState {
   supportsStyles?: boolean;
+  supportsLiveWallpaper?: boolean;
+  live?: {
+    config: LiveWallpaperConfig;
+    active: boolean;
+    weather?: { condition: string; night: boolean; updatedAt: number };
+    weatherError?: string;
+  };
   config?: Rotation;
   nextAt?: number;
   lastApplied?: number;
@@ -18,6 +26,8 @@ export interface NativeState {
 }
 export interface WallpaperBridge {
   getState(): Promise<NativeState>;
+  configureLive(options: { config: LiveWallpaperConfig }): Promise<NativeState>;
+  openLiveWallpaperPreview(): Promise<void>;
   configure(options: { config: Rotation }): Promise<NativeState>;
   apply(options: { config: Rotation }): Promise<NativeState>;
   next(): Promise<NativeState>;

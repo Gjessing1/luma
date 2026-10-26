@@ -164,6 +164,27 @@ try {
   await page.getByRole('heading', { name: 'Playlist', exact: true }).waitFor();
   await page.goBack();
   await page.getByRole('heading', { name: 'Library', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Live wallpaper', exact: true }).click();
+  await page.getByRole('heading', { name: 'Live scenes', exact: true }).waitFor();
+  assert.equal(await page.locator('.live-scene-card').count(), 3);
+  assert.equal(
+    await page
+      .getByRole('button', { name: 'Save & open Android preview', exact: true })
+      .isDisabled(),
+    true,
+  );
+  await page.getByRole('button', { name: 'Weather landscape', exact: false }).click();
+  for (const weather of ['clear', 'clouds', 'rain', 'snow', 'storm', 'auto']) {
+    await page.getByLabel('Weather source').selectOption(weather);
+  }
+  await page.getByLabel('Latitude', { exact: true }).fill('60.39');
+  await page.getByLabel('Longitude', { exact: true }).fill('5.32');
+  await page.reload();
+  assert.equal(await page.getByLabel('Weather source').inputValue(), 'auto');
+  assert.equal(await page.getByLabel('Latitude', { exact: true }).inputValue(), '60.39');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  await page.screenshot({ path: 'test-results/live-settings-mobile.png', fullPage: true });
+  await page.getByRole('button', { name: 'Library', exact: true }).click();
   // Browser install link is quiet; Android only offers a download for a newer installed version.
   await page.route('**/api/app/version', (route) =>
     route.fulfill({ json: { versionCode: 1, versionName: '0.1.0', bytes: 3000000 } }),

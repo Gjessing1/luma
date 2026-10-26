@@ -48,3 +48,21 @@ unprotected local test server. Fetch expected test images directly from Node at
 reconnect until a replacement page remains alive rather than using one fixed wait.
 Start the Activity only after instrumentation finishes: its runner kills the app
 process on completion, invalidating a devtools socket forwarded during the run.
+
+Live wallpaper verification: after the ordinary WebView harness, run
+`node apps/android/e2e/live-wallpaper.mjs` against the same disposable server and
+forwarded CDP socket. It opens the actual system preview and uses adb to confirm
+Set wallpaper/Home, checks the active component, changes all native scenes/weather
+presets, verifies animation/still frames and home rotation pause, and returns to a
+static wallpaper at the end. Run only on the emulator: this changes its wallpaper.
+Native instrumentation also checks the protected service registration, WMO weather
+mapping and distinct procedural frames without a network.
+
+Trap (2026-10-26): Canvas Paint keeps alpha from the last particle. Reset its color
+to opaque before drawing a gradient background or successive frames leave trails;
+the cached-weather/preset pixel equivalence test catches this.
+
+Trap (2026-10-26): the AOSP live picker uses `LiveWallpaperPreview`, not
+`WallpaperPreviewActivity`; always handle the destination dialog after Set wallpaper.
+`dumpsys wallpaper` prints the component with its full class name. Engine visibility
+is in `dumpsys activity service io.gjessing.luma/.LumaWallpaperService`.

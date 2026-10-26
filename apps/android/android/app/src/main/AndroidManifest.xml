@@ -11,6 +11,8 @@
     -->
     <uses-permission android:name="android.permission.CREDENTIAL_MANAGER_SET_ORIGIN" />
 
+    <uses-feature android:name="android.software.live_wallpaper" android:required="false" />
+
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
@@ -35,6 +37,17 @@
 
             <!-- A share target goes here as SEND / SEND_MULTIPLE filters (docs/ANDROID.md recipes). -->
         </activity>
+
+        <service
+            android:name=".LumaWallpaperService"
+            android:label="@string/live_wallpaper_name"
+            android:permission="android.permission.BIND_WALLPAPER"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data android:name="android.service.wallpaper" android:resource="@xml/live_wallpaper" />
+        </service>
 
         <receiver android:name=".WallpaperAlarmReceiver" android:exported="false">
             <intent-filter>

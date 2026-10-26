@@ -141,5 +141,24 @@ public class WallpaperPlugin extends Plugin {
         try { getActivity().startActivity(new Intent(Intent.ACTION_SET_WALLPAPER)); call.resolve(); }
         catch (Exception error) { try { getActivity().startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS)); call.resolve(); } catch (Exception fallback) { call.reject("Open Settings → Wallpaper and style on your Galaxy"); } }
     }
+    @PluginMethod public void configureLive(PluginCall call) { execute(call, () -> {
+        synchronized (LiveWallpaperSettings.class) {
+            LiveWallpaperSettings.save(getContext(), call.getObject("config"));
+        }
+    }); }
+    @PluginMethod public void openLiveWallpaperPreview(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            if (!trustedPage()) { call.reject("Open Luma to use wallpaper controls"); return; }
+            try {
+                android.app.WallpaperManager manager = android.app.WallpaperManager.getInstance(getContext());
+                if (!manager.isWallpaperSupported() || !manager.isSetWallpaperAllowed()) throw new Exception("This device does not allow changing wallpaper");
+                Intent intent = new Intent(android.app.WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER)
+                    .putExtra(android.app.WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,
+                        new android.content.ComponentName(getContext(), LumaWallpaperService.class));
+                getActivity().startActivity(intent);
+                call.resolve();
+            } catch (Exception error) { call.reject("Could not open live wallpaper preview. Open Settings → Wallpaper and style → Live wallpapers → Luma.", error); }
+        });
+    }
     private static void deleteTree(File file) { File[] children = file.listFiles(); if (children != null) for (File child : children) deleteTree(child); file.delete(); }
 }
