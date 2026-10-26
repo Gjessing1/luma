@@ -1,0 +1,80 @@
+apply plugin: 'com.android.application'
+
+// Release signing comes from ~/.config/luma/keystore.env via build-apk.sh, never from the repo.
+def releaseKeystore = System.getenv('LUMA_KEYSTORE_FILE')
+def releaseStorePassword = System.getenv('LUMA_KEYSTORE_PASSWORD')
+def releaseKeyAlias = System.getenv('LUMA_KEY_ALIAS')
+def releaseKeyPassword = System.getenv('LUMA_KEY_PASSWORD')
+def hasReleaseSigning = releaseKeystore && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
+// Debug builds can point at another server (the emulator reaches the host at 10.0.2.2):
+// ./gradlew assembleDebug -PserverUrl=http://10.0.2.2:3048
+def releaseServerUrl = 'https://luma.gjessing.io'
+def debugServerUrl = project.findProperty('serverUrl') ?: releaseServerUrl
+
+android {
+    namespace = "io.gjessing.luma"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "io.gjessing.luma"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "0.1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    buildFeatures {
+        buildConfig = true
+    }
+    signingConfigs {
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(releaseKeystore)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+    buildTypes {
+        debug {
+            buildConfigField 'String', 'SERVER_URL', "\"${debugServerUrl}\""
+            manifestPlaceholders = [usesCleartextTraffic: 'true']
+        }
+        release {
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
+            buildConfigField 'String', 'SERVER_URL', "\"${releaseServerUrl}\""
+            manifestPlaceholders = [usesCleartextTraffic: 'false']
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation "androidx.webkit:webkit:$androidxWebkitVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+

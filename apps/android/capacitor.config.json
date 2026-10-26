@@ -1,0 +1,9 @@
+{
+  "appId": "io.gjessing.luma",
+  "appName": "Luma",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false,
+    "resolveServiceWorkerRequests": false
+  }
+}

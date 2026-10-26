@@ -1,0 +1,18 @@
+{
+  "name": "@luma/android",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Capacitor shell over the hosted Luma web app (ARCHITECTURE A7). Not an npm workspace, so the server image never installs Capacitor.",
+  "scripts": {
+    "sync": "cap sync android",
+    "icons": "node scripts/generate-icons.mjs",
+    "build:debug": "npm run sync && cd android && ./gradlew assembleDebug",
+    "build:release": "./build-apk.sh"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "sharp": "^0.35.5"
+  }
+}

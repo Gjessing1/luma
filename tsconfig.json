@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "_comment": "Solution file: `tsc -b` builds every emitting project in dependency order and skips unchanged ones. apps/web is noEmit and type-checked separately (see the root typecheck script).",
+  "files": [],
+  "references": [{ "path": "packages/core" }, { "path": "backend" }]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@luma/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared domain types and logic. No UI frameworks, no backend imports.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./app-release": {
+      "types": "./dist/app-release.d.ts",
+      "default": "./dist/app-release.js"
+    }
+  }
+}

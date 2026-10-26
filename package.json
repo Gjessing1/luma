@@ -1,0 +1,46 @@
+{
+  "name": "luma",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Luma \u2014 one-line description.",
+  "_comment:workspaces": "apps/web, not apps/*: apps/android has its own lockfile and is installed on its own, so Capacitor never enters the server image or its npm ci (A7).",
+  "workspaces": [
+    "packages/*",
+    "apps/web",
+    "backend"
+  ],
+  "scripts": {
+    "build": "tsc -b && npm run build -w @luma/web",
+    "dev": "tsc -b && concurrently -k -n tsc,backend,web -c gray,blue,green \"npm:dev:tsc\" \"npm:dev:backend\" \"npm:dev:web\"",
+    "_comment:dev:tsc": "Both the backend (tsx) and Vite import workspace packages from their dist/, so without this watcher an edit in packages/* is invisible until dev restarts. Watching the whole solution also surfaces type errors live, and new packages are picked up through tsconfig references.",
+    "dev:tsc": "tsc -b -w --preserveWatchOutput",
+    "dev:backend": "npm run dev -w @luma/backend",
+    "dev:web": "npm run dev -w @luma/web",
+    "typecheck": "tsc -b && npm run typecheck -w @luma/web",
+    "test": "vitest run",
+    "lint": "eslint . --cache --cache-location node_modules/.cache/eslint/",
+    "format": "prettier --write . --cache",
+    "format:check": "prettier --check . --cache",
+    "gate": "node scripts/gate.mjs",
+    "android:release": "scripts/release-android.sh"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.19.0",
+    "concurrently": "^10.0.5",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.9",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^5.0.2"
+  },
+  "_comment:allowScripts": "npm 11+ warns about dependency install scripts nobody approved, and blocks them when strict-allow-scripts is on. esbuild's script only checks its binary. Approve a new one with `npm install-scripts approve <pkg>`, then remove the @version it pins so upgrades stay approved. A native addon such as better-sqlite3 NEEDS its script: if it is blocked, the package installs without its binding and the app crashes at startup, not at build.",
+  "allowScripts": {
+    "esbuild": true
+  }
+}

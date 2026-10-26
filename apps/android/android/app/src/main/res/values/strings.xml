@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Luma</string>
+    <string name="title_activity_main">Luma</string>
+    <string name="package_name">io.gjessing.luma</string>
+    <string name="custom_url_scheme">io.gjessing.luma</string>
+    <string name="server_unavailable_title">Luma is unreachable</string>
+    <string name="server_unavailable_message">Could not load %1$s. Check the connection and try again.</string>
+    <string name="retry">Retry</string>
+    <string name="update_downloading">Downloading the Luma update…</string>
+</resources>

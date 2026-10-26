@@ -1,0 +1,12 @@
+node_modules
+dist
+build
+backend/public
+# Gradle and Capacitor files: Prettier can't parse most of them and would reformat the rest.
+apps/android/android
+CLAUDE.md
+AGENTS.md
+TEMPLATE.md
+docs
+.claude
+package-lock.json

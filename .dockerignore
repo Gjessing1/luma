@@ -1,0 +1,24 @@
+**/node_modules
+**/dist
+**/build
+# Build state outside dist/ would let `tsc -b` skip projects whose dist/ was
+# ignored here, compiling against types that were never emitted.
+**/*.tsbuildinfo
+backend/public
+.git
+.env
+.env.*
+!.env.example
+# Local-only planning docs (gitignored, so CI's context never has them — without
+# these lines a local `docker build` format-checks files CI cannot see).
+CLAUDE.md
+AGENTS.md
+TEMPLATE.md
+docs
+.claude
+data
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+# The Capacitor shell is built on the host by scripts/release-android.sh, never in the image.
+apps/android
