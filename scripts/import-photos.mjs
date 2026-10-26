@@ -43,6 +43,9 @@ for (const photo of selected) {
         '--silent',
         '--show-error',
         '--location',
+        // Wikimedia's robot policy asks automated clients to identify themselves.
+        '--user-agent',
+        'LumaPhotoImport/1.0 (https://git.gjessing.io/gjessing1/luma)',
         '--max-time',
         '60',
         '--max-filesize',

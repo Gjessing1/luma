@@ -188,5 +188,145 @@
       "author": "Tobias Bjørkli",
       "license": "Pexels License"
     }
+  },
+  {
+    "key": "autumn-gold",
+    "name": "Autumn — golden tree, Dülmen",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/1/1a/D%C3%BClmen%2C_Wildpark_--_2018_--_1382-6.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:D%C3%BClmen,_Wildpark_--_2018_--_1382-6.jpg",
+      "author": "Dietmar Rabich",
+      "license": "CC BY-SA 4.0"
+    }
+  },
+  {
+    "key": "autumn-birch-path",
+    "name": "Autumn — birch path, Haßfurt",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/5/5c/Weg_auf_der_Ostseite_des_Galgenfeldsees_bei_Ha%C3%9Ffurt.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:Weg_auf_der_Ostseite_des_Galgenfeldsees_bei_Ha%C3%9Ffurt.jpg",
+      "author": "Stephan van Helden",
+      "license": "CC BY-SA 4.0"
+    }
+  },
+  {
+    "key": "autumn-park-bridge",
+    "name": "Autumn — park bridge, Dülmen",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/7/70/D%C3%BClmen%2C_Wildpark_--_2014_--_3811.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:D%C3%BClmen,_Wildpark_--_2014_--_3811.jpg",
+      "author": "Dietmar Rabich",
+      "license": "CC BY-SA 4.0"
+    }
+  },
+  {
+    "key": "autumn-fog",
+    "name": "Autumn — fog over Synevyr",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/5/5e/21-224-5054_NNP_Synevyr_RB_18.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:21-224-5054_NNP_Synevyr_RB_18.jpg",
+      "author": "Rbrechko",
+      "license": "CC BY-SA 4.0"
+    }
+  },
+  {
+    "key": "winter-moon",
+    "name": "Winter — moon over frosted trees",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/a/a2/Moon_in_clouds_over_snowy_trees_in_Tuntorp.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:Moon_in_clouds_over_snowy_trees_in_Tuntorp.jpg",
+      "author": "W.carter",
+      "license": "CC BY-SA 4.0"
+    }
+  },
+  {
+    "key": "winter-avenue",
+    "name": "Winter — snowy forest avenue",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/d/d4/D%C3%BClmen%2C_Kirchspiel%2C_B%C3%B6rnste%2C_Neustr%C3%A4%C3%9Fer_Bruch_--_2025_--_7028.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:D%C3%BClmen,_Kirchspiel,_B%C3%B6rnste,_Neustr%C3%A4%C3%9Fer_Bruch_--_2025_--_7028.jpg",
+      "author": "Dietmar Rabich",
+      "license": "CC BY-SA 4.0"
+    }
+  },
+  {
+    "key": "winter-pink-morning",
+    "name": "Winter — pink morning, Gorgany",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/0/06/%D0%A0%D0%BE%D0%B6%D0%B5%D0%B2%D0%B8%D0%B9_%D1%80%D0%B0%D0%BD%D0%BE%D0%BA_%D0%B2_%D2%90%D0%BE%D1%80%D2%91%D0%B0%D0%BD%D0%B0%D1%85.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:%D0%A0%D0%BE%D0%B6%D0%B5%D0%B2%D0%B8%D0%B9_%D1%80%D0%B0%D0%BD%D0%BE%D0%BA_%D0%B2_%D2%90%D0%BE%D1%80%D2%91%D0%B0%D0%BD%D0%B0%D1%85.jpg",
+      "author": "Vitalii Bashkatov",
+      "license": "CC BY-SA 4.0"
+    }
+  },
+  {
+    "key": "winter-ridge",
+    "name": "Winter — rime at sunset, Vihorlat",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/4/45/Sninsk%C3%BD_kame%C5%88_%28v_zime%29_046.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:Sninsk%C3%BD_kame%C5%88_(v_zime)_046.jpg",
+      "author": "Milan Bališin",
+      "license": "CC BY-SA 4.0"
+    }
+  },
+  {
+    "key": "ice-portage",
+    "name": "Ice — black ice on Portage Lake",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/0/08/Skating_on_Portage_Lake._Chugach_National_Forest%2C_Alaska_%2846707546464%29.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:Skating_on_Portage_Lake._Chugach_National_Forest,_Alaska_(46707546464).jpg",
+      "author": "Paxson Woelber",
+      "license": "CC BY 2.0"
+    }
+  },
+  {
+    "key": "ice-mjosa",
+    "name": "Ice — frozen Mjøsa at sunrise",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/2/22/Mj%C3%B8sa_vinter_02.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:Mj%C3%B8sa_vinter_02.jpg",
+      "author": "Øyvind Holmstad",
+      "license": "CC BY-SA 4.0"
+    }
+  },
+  {
+    "key": "ice-sheridan",
+    "name": "Ice — skating among icebergs",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/b/b0/Nordic_skating_at_Sheridan_Glacier._Cordova%2C_Alaska_%2831639304011%29.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:Nordic_skating_at_Sheridan_Glacier._Cordova,_Alaska_(31639304011).jpg",
+      "author": "Paxson Woelber",
+      "license": "CC BY 2.0"
+    }
+  },
+  {
+    "key": "jellyfish",
+    "name": "Ocean — spotted jellyfish",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/a/a3/Meduses-Phyllorhiza_punctata-Nausicaa-07-2024-Luc-Viatour.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:Meduses-Phyllorhiza_punctata-Nausicaa-07-2024-Luc-Viatour.jpg",
+      "author": "Luc Viatour",
+      "license": "CC BY-SA 3.0"
+    }
+  },
+  {
+    "key": "pinnacle",
+    "name": "Grampians — Pinnacle above the clouds",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/6/62/The_Pinnacle%2C_Grampians_National_Park_Sunrise.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:The_Pinnacle,_Grampians_National_Park_Sunrise.jpg",
+      "author": "Joshua Tagicakibau",
+      "license": "CC BY-SA 4.0"
+    }
+  },
+  {
+    "key": "rocket-plume",
+    "name": "Night sky — rocket fuel plume",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/c/c7/Zhuque-2E_propellant_dump_over_Wisconsin.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:Zhuque-2E_propellant_dump_over_Wisconsin.jpg",
+      "author": "Brainandforce",
+      "license": "CC BY 4.0"
+    }
   }
 ]

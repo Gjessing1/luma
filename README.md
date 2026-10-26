@@ -105,6 +105,12 @@ and above Earth, Lofoten peaks, sunlit and misty forests, ISS exterior/cupola/sp
 and source links appear in each photo's preview. Sources and download URLs are
 recorded in `scripts/curated-photos.json`.
 
+A seasonal set from Wikimedia Commons adds autumn foliage, snow, skateable frozen
+lakes (Portage Lake, Mjøsa, Sheridan Glacier) and a few surprises. Each was chosen
+for a calm lower third behind the app grid and a centre crop of at least 1440×3120,
+so the Galaxy S24 Ultra never gets an upscaled image. They carry CC BY / CC BY-SA
+licenses; the preview credit links to the original file page.
+
 `node scripts/import-photos.mjs` imports that list through the local API. It skips
 photos whose source URL is already present and leaves existing wallpapers and
 phone playlists alone. `--download-only` prepares a temporary cache without importing.
