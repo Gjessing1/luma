@@ -328,5 +328,55 @@
       "author": "Brainandforce",
       "license": "CC BY 4.0"
     }
+  },
+  {
+    "key": "dune-wadi-rum",
+    "name": "Dune — Wadi Rum at dusk",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/6/6c/Wadi_Rum_Desert_06.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:Wadi_Rum_Desert_06.jpg",
+      "author": "BarabaszO",
+      "license": "CC BY-SA 4.0"
+    }
+  },
+  {
+    "key": "dune-empty-quarter-haze",
+    "name": "Dune — Rub' al Khali haze",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/e/ed/Sunset_over_the_Rub_al_Khali_desert2.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:Sunset_over_the_Rub_al_Khali_desert2.jpg",
+      "author": "Darthjipsu",
+      "license": "CC BY-SA 4.0"
+    }
+  },
+  {
+    "key": "dune-crest-oman",
+    "name": "Dune — crest in the Empty Quarter",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/2/21/Ar-Rub%27_Al-Khali_%28Oman%29_kz03.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:Ar-Rub%27_Al-Khali_(Oman)_kz03.jpg",
+      "author": "Krzysztof Ziarnek, Kenraiz",
+      "license": "CC BY-SA 4.0"
+    }
+  },
+  {
+    "key": "dune-night-al-quaa",
+    "name": "Dune — Milky Way over Al Quaa",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/8/89/Mesmerising_natural_beauty_-_the_milky_way_and_the_desert_at_Al_Quaa.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:Mesmerising_natural_beauty_-_the_milky_way_and_the_desert_at_Al_Quaa.jpg",
+      "author": "Chrdoerr",
+      "license": "CC BY-SA 4.0"
+    }
+  },
+  {
+    "key": "dune-45",
+    "name": "Dune — Dune 45 at sunrise",
+    "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/2/2e/006_Dune_45_in_Sossusvlei_at_sunrise_Photo_by_Giles_Laurent.jpg",
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:006_Dune_45_in_Sossusvlei_at_sunrise_Photo_by_Giles_Laurent.jpg",
+      "author": "Giles Laurent",
+      "license": "CC BY-SA 4.0"
+    }
   }
 ]

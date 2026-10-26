@@ -111,6 +111,11 @@ for a calm lower third behind the app grid and a centre crop of at least 1440×3
 so the Galaxy S24 Ultra never gets an upscaled image. They carry CC BY / CC BY-SA
 licenses; the preview credit links to the original file page.
 
+A Dune-inspired set catches the feel of Arrakis without stills or actors: Wadi Rum
+(where the films were shot) at dusk, Rub' al Khali haze and a wind-cut crest, the
+Milky Way over Abu Dhabi's Al Quaa dunes, and Namibia's Dune 45. These are also
+CC BY-SA Commons photos at the same S24 Ultra standard.
+
 `node scripts/import-photos.mjs` imports that list through the local API. It skips
 photos whose source URL is already present and leaves existing wallpapers and
 phone playlists alone. `--download-only` prepares a temporary cache without importing.
