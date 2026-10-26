@@ -41,8 +41,8 @@ try {
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(origin);
-  await page.getByText('Your collection starts here.').waitFor();
-  await page.getByRole('button', { name: 'Try the starter collection' }).click();
+  await page.getByText('No wallpapers yet.').waitFor();
+  await page.getByRole('button', { name: 'Add abstract backgrounds' }).click();
   await page.locator('.wallpaper-card').nth(5).waitFor();
   assert.equal(await page.locator('.wallpaper-card').count(), 6);
   await page
@@ -125,6 +125,38 @@ try {
       `${name} must not overflow`,
     );
   }
+  // Browser install link is quiet; Android only offers a download for a newer installed version.
+  await page.route('**/api/app/version', (route) =>
+    route.fulfill({ json: { versionCode: 1, versionName: '0.1.0', bytes: 3000000 } }),
+  );
+  await page.reload();
+  await page.getByRole('link', { name: 'Android APK' }).waitFor();
+  assert.equal(await page.locator('.collection-banner, .android-panel').count(), 0);
+  const nativePage = await browser.newPage({ viewport: { width: 384, height: 832 } });
+  await nativePage.addInitScript(() => {
+    window.Capacitor = {
+      Plugins: {
+        AppShell: {
+          getInfo: async () => ({ versionCode: 1, versionName: '0.1.0' }),
+          downloadUpdate: async (options) => {
+            window.testDownload = options;
+          },
+        },
+        Wallpaper: { getState: async () => ({ model: 'SM-S928B' }) },
+      },
+    };
+  });
+  await nativePage.route('**/api/app/version', (route) =>
+    route.fulfill({ json: { versionCode: 2, versionName: '0.2.0', bytes: 3000000 } }),
+  );
+  await nativePage.goto(origin);
+  await nativePage.getByText('Update 0.2.0 available.').waitFor();
+  assert.equal(await nativePage.locator('a[href="/api/app/download"]').count(), 0);
+  assert.equal(await nativePage.getByText('Get the Android app').count(), 0);
+  await nativePage.getByRole('button', { name: 'Download update', exact: true }).click();
+  assert.match((await nativePage.evaluate(() => window.testDownload)).url, /\/api\/app\/download$/);
+  await nativePage.screenshot({ path: 'test-results/android-no-promotion.png', fullPage: true });
+  await nativePage.close();
   assert.deepEqual(errors, []);
   console.log(
     'Browser verification passed: import, library, crop/effects, playlist, both Galaxy viewports, persistence, rename and deletion.',

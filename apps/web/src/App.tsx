@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { devices, validateRotation, type Rotation, type Wallpaper } from '@luma/core/wallpaper';
 import { appShell } from './android-shell';
-import { downloadAppUpdate, type PublishedApp } from './app-update';
+import type { PublishedApp } from './app-update';
 import { AppUpdateNotice } from './AppUpdateNotice';
 import { RotationSettings } from './RotationSettings';
 import { WallpaperDetail } from './WallpaperDetail';
@@ -141,7 +141,7 @@ export function App() {
             luma<span className="brand-dot">.</span>
           </span>
         </a>
-        <span className="sidebar-label">YOUR WALLPAPER STUDIO</span>
+        <span className="sidebar-label">WALLPAPERS</span>
         <nav>
           {(
             [
@@ -175,34 +175,25 @@ export function App() {
             {profile.width} × {profile.height}
           </span>
           <span className="device-local">
-            {wallpaperBridge() ? 'Android connected' : 'Browser studio'}
+            {wallpaperBridge() ? 'Android connected' : 'Web browser'}
           </span>
         </div>
       </aside>
       <main>
         <header className="topbar">
-          <span>
-            <span className="online-dot" /> A little change. Every day.
-          </span>
-          <a href="#android">Get the Android app ↗</a>
+          <span>Shared library</span>
+          <span>{profile.name}</span>
         </header>
         <AppUpdateNotice />
         <section className="intro">
           <div>
-            <span className="eyebrow">A FRESH PERSPECTIVE</span>
-            <h1>
-              {tab === 'library'
-                ? 'Your next favorite view.'
-                : tab === 'playlist'
-                  ? 'A change of scenery.'
-                  : 'Set it. Let it change.'}
-            </h1>
+            <h1>{tab === 'library' ? 'Library' : tab === 'playlist' ? 'Playlist' : 'Schedule'}</h1>
             <p>
               {tab === 'library'
-                ? 'Collect beautiful backgrounds. Make your Galaxy feel like you.'
+                ? 'Add photos and choose wallpapers for your phone.'
                 : tab === 'playlist'
-                  ? 'Choose the views that take turns on your phone.'
-                  : 'The right wallpaper, at the right moment.'}
+                  ? 'Choose the wallpapers to rotate on this phone.'
+                  : 'Set when this phone changes wallpaper.'}
             </p>
           </div>
           <button
@@ -249,21 +240,6 @@ export function App() {
           />
         ) : (
           <>
-            <section className="collection-banner">
-              <div className="banner-orbit" />
-              <div>
-                <span className="eyebrow">DESIGNED FOR YOUR GALAXY</span>
-                <h2>A world beyond your home screen.</h2>
-                <p>One shared collection. A personal rhythm on every phone.</p>
-                <button onClick={() => setTab('schedule')}>
-                  Set up your rotation <span>↗</span>
-                </button>
-              </div>
-              <div className="banner-device">
-                <span>19.5:9</span>
-                <small>PERFECTLY FRAMED</small>
-              </div>
-            </section>
             <div className="library-toolbar">
               <div className="filter-tabs">
                 <button
@@ -283,7 +259,7 @@ export function App() {
               <input
                 type="search"
                 aria-label="Search wallpapers"
-                placeholder="Search your collection…"
+                placeholder="Search wallpapers…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -312,21 +288,21 @@ export function App() {
               </div>
             )}
             {loading ? (
-              <div className="empty-state">Loading your collection…</div>
+              <div className="empty-state">Loading wallpapers…</div>
             ) : visible.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-icon">▧</div>
                 <h2>
                   {query || favorites
-                    ? 'No matching views yet.'
+                    ? 'No matching wallpapers.'
                     : tab === 'playlist'
-                      ? 'Build a playlist you love.'
-                      : 'Your collection starts here.'}
+                      ? 'Playlist is empty.'
+                      : 'No wallpapers yet.'}
                 </h2>
                 <p>
                   {tab === 'playlist'
                     ? 'Add wallpapers from your library with the playlist button.'
-                    : 'Upload photos, art, or a favorite landscape. Images stay in your private library.'}
+                    : 'Upload photos to the shared library.'}
                 </p>
                 <button
                   onClick={() => (tab === 'playlist' ? setTab('library') : input.current?.click())}
@@ -339,13 +315,13 @@ export function App() {
                     disabled={busy}
                     onClick={() => {
                       void run(async () => {
-                        setNotice('Creating your starter collection…');
+                        setNotice('Adding abstract backgrounds…');
                         await api('/api/wallpapers/starter', { method: 'POST' });
                         await refresh();
                       });
                     }}
                   >
-                    Try the starter collection ↗
+                    Add abstract backgrounds
                   </button>
                 )}
               </div>
@@ -417,42 +393,15 @@ export function App() {
               </div>
             )}
             <div className="collection-footer">
-              <span>{visible.length} views. Endless possibilities.</span>
-              <span>Made for your everyday.</span>
+              <span>{visible.length} wallpapers</span>
             </div>
           </>
         )}
-        <section className="android-panel" id="android">
-          <div className="android-mark">↧</div>
-          <div>
-            <span className="eyebrow">TAKE YOUR COLLECTION WITH YOU</span>
-            <h2>Luma for Android</h2>
-            <p>Offline rotation, Galaxy framing, and updates delivered in the app.</p>
-            <small>
-              {release
-                ? `Latest release ${release.versionName} · ${(release.bytes / 1048576).toFixed(1)} MB`
-                : 'The first signed release is being prepared.'}
-            </small>
-          </div>
-          <a
-            className={`button ${release ? 'primary' : ''}`}
-            href={release ? '/api/app/download' : '#android'}
-            onClick={(e) => {
-              if (!release) e.preventDefault();
-              else if (appShell()) {
-                e.preventDefault();
-                void run(() => downloadAppUpdate(release));
-              }
-            }}
-          >
-            Download APK ↗
-          </a>
-        </section>
         <footer>
-          <span>
-            luma. <span className="muted">Your personal wallpaper studio.</span>
-          </span>
-          <span>Galaxy S24 Ultra & S25 · v0.1.0</span>
+          <span>Luma</span>
+          {!appShell() && release && (
+            <a href="/api/app/download">Android APK · {release.versionName}</a>
+          )}
         </footer>
       </main>
       {detail && (

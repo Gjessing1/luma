@@ -1100,3 +1100,13 @@ summary {
   font-size: 9px;
   min-height: 34px;
 }
+.photo-credit {
+  font-size: 11px;
+  line-height: 1.7;
+  margin: 12px 0 20px;
+}
+.photo-credit span {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+}

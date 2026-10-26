@@ -1,8 +1,7 @@
 # Luma
 
-A self-hosted wallpaper studio for Galaxy S24 Ultra and Galaxy S25, inspired by
-Wallpaper Engine's library and playlist workflow. Manage a shared image collection
-from the web and let each Android phone run its own offline rotation.
+A private wallpaper library and rotation app for our Galaxy S24 Ultra and Galaxy S25.
+The library is shared; each phone has its own playlist and offline schedule.
 
 - Upload JPEG, PNG, WebP and AVIF images, or import six original starter wallpapers.
 - Search, favorite, rename, preview, download and delete wallpapers.
@@ -98,3 +97,15 @@ Pushes to `main` build, smoke-test and publish
 the host Docker daemon and requires no changes to the shared runner configuration.
 The compose network uses an explicit subnet because this host's default address
 pools are exhausted. Health: `GET /api/health` reports the running git SHA.
+
+## Added photos
+
+The household collection includes 13 real photos: Milky Way over the French Alps
+and above Earth, Lofoten peaks, sunlit and misty forests, ISS exterior/cupola/spacewalk views, ice crystals in microgravity, orbital aurora and sunset, the Moon, and the Bahamas from orbit. Credits
+and source links appear in each photo's preview. Sources and download URLs are
+recorded in `scripts/curated-photos.json`.
+
+`node scripts/import-photos.mjs` imports that list through the local API. It skips
+photos whose source URL is already present and leaves existing wallpapers and
+phone playlists alone. `--download-only` prepares a temporary cache without importing.
+Set `LUMA_IMPORT_ORIGIN` to target a disposable backend for verification.

@@ -93,11 +93,19 @@ export function WallpaperDetail({
           </p>
         </div>
         <div className="detail-controls">
-          <span className="eyebrow">MAKE IT YOURS</span>
+          <span className="eyebrow">PREVIEW</span>
           <h2>{w.name}</h2>
           <p className="muted">
             Original {w.width} × {w.height} · {(w.bytes / 1048576).toFixed(1)} MB
           </p>
+          {w.source && (
+            <p className="photo-credit">
+              <a href={w.source.url} target="_blank" rel="noreferrer">
+                Photo: {w.source.author} ↗
+              </a>
+              <span>{w.source.license}</span>
+            </p>
+          )}
           <label>
             Wallpaper name
             <input

@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile, rename, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
-import type { Wallpaper } from '@luma/core/wallpaper';
+import type { Wallpaper, WallpaperSource } from '@luma/core/wallpaper';
 
 export class Library {
   private pending: Promise<unknown> = Promise.resolve();
@@ -30,7 +30,7 @@ export class Library {
     await writeFile(temporary, JSON.stringify(rows));
     await rename(temporary, join(this.directory, 'library.json'));
   }
-  async add(data: Buffer, name: string): Promise<Wallpaper> {
+  async add(data: Buffer, name: string, source?: WallpaperSource): Promise<Wallpaper> {
     // Decode, orient and re-encode on ingestion: no executable uploads or EXIF location metadata.
     const image = await sharp(data, { limitInputPixels: 50_000_000, animated: false })
       .rotate()
@@ -47,6 +47,7 @@ export class Library {
         bytes: image.data.length,
         favorite: false,
         createdAt: new Date().toISOString(),
+        ...(source ? { source } : {}),
       };
       await writeFile(this.file(row.id), image.data);
       await this.save([row, ...(await this.list())]);

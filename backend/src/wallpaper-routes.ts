@@ -1,7 +1,13 @@
 import { join } from 'node:path';
 import sharp from 'sharp';
 import type { FastifyInstance } from 'fastify';
-import { cropRectangle, devices, isWallpaperId, type Device } from '@luma/core/wallpaper';
+import {
+  cropRectangle,
+  devices,
+  isWallpaperId,
+  parseWallpaperSource,
+  type Device,
+} from '@luma/core/wallpaper';
 import { starterWallpapers } from './starter-wallpapers.js';
 import { Library } from './library.js';
 
@@ -27,7 +33,13 @@ export function registerWallpaperRoutes(app: FastifyInstance, dataDir: string) {
         typeof request.headers['x-file-name'] === 'string'
           ? decodeURIComponent(request.headers['x-file-name'])
           : 'Wallpaper';
-      return reply.code(201).send(await library.add(request.body, name.replace(/\.[^.]+$/, '')));
+      const sourceHeader = request.headers['x-wallpaper-source'];
+      const source = parseWallpaperSource(
+        typeof sourceHeader === 'string' ? JSON.parse(decodeURIComponent(sourceHeader)) : undefined,
+      );
+      return reply
+        .code(201)
+        .send(await library.add(request.body, name.replace(/\.[^.]+$/, ''), source));
     } catch {
       return reply.code(400).send({
         error:

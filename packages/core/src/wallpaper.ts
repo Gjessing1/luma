@@ -1,3 +1,26 @@
+export interface WallpaperSource {
+  url: string;
+  author: string;
+  license: string;
+}
+
+export function parseWallpaperSource(value: unknown): WallpaperSource | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'object' || value === null) throw new Error('Invalid photo source');
+  const { url, author, license } = value as Record<string, unknown>;
+  if (
+    typeof url !== 'string' ||
+    url.length > 1000 ||
+    !/^https:\/\/[a-z0-9.-]+(?::\d+)?(?:[/?#][^\s]*)?$/i.test(url)
+  )
+    throw new Error('Photo source must be an HTTPS link');
+  if (typeof author !== 'string' || !author.trim() || author.length > 200)
+    throw new Error('Invalid photo credit');
+  if (typeof license !== 'string' || !license.trim() || license.length > 200)
+    throw new Error('Invalid photo license');
+  return { url, author: author.trim(), license: license.trim() };
+}
+
 export interface Wallpaper {
   id: string;
   name: string;
@@ -6,6 +29,7 @@ export interface Wallpaper {
   bytes: number;
   createdAt: string;
   favorite: boolean;
+  source?: WallpaperSource;
 }
 
 export const devices = {

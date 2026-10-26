@@ -18,16 +18,15 @@ export function RotationSettings({ config, setConfig, state, busy, run, refreshN
     <section className="settings-panel">
       <div className="section-heading">
         <div>
-          <span className="eyebrow">YOUR PHONE, YOUR RHYTHM</span>
-          <h2>Wallpaper rotation</h2>
+          <span className="eyebrow">THIS PHONE</span>
+          <h2>Rotation</h2>
         </div>
         <span className={`status-pill ${state.config?.enabled ? 'active' : ''}`}>
           {state.config?.enabled ? 'Running on phone' : 'Paused'}
         </span>
       </div>
       <p className="muted">
-        Your playlist and schedule belong to this device. Your shared library stays available to
-        both phones.
+        Each phone keeps its own playlist and schedule. Both phones use the shared library.
       </p>
       <div className="settings-grid">
         <label>

@@ -38,9 +38,9 @@ export function AppUpdateNotice() {
 
   return (
     <aside className="app-update" role="status">
-      <span>Luma {update.versionName} is available for Android.</span>
+      <span>Update {update.versionName} available.</span>
       <button type="button" onClick={() => download(update)} disabled={busy}>
-        Download
+        Download update
       </button>
       {status !== '' && <span>{status}</span>}
     </aside>

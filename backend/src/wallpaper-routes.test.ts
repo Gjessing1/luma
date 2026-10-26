@@ -87,6 +87,43 @@ describe('wallpaper library', () => {
     expect((await restarted.inject('/api/wallpapers')).json()).toHaveLength(2);
     await restarted.close();
   });
+  it('keeps photo provenance through uploads and rejects unsafe source links', async () => {
+    const image = await sharp({
+      create: { width: 60, height: 130, channels: 3, background: '#24384c' },
+    })
+      .png()
+      .toBuffer();
+    const source = {
+      url: 'https://www.nasa.gov/example-photo/',
+      author: 'NASA',
+      license: 'NASA image download',
+    };
+    const result = await app.inject({
+      method: 'POST',
+      url: '/api/wallpapers',
+      headers: {
+        'content-type': 'image/png',
+        'x-wallpaper-source': encodeURIComponent(JSON.stringify(source)),
+      },
+      payload: image,
+    });
+    expect(result.statusCode).toBe(201);
+    expect(result.json().source).toEqual(source);
+    expect((await app.inject('/api/wallpapers')).json()[0].source).toEqual(source);
+    const invalid = await app.inject({
+      method: 'POST',
+      url: '/api/wallpapers',
+      headers: {
+        'content-type': 'image/png',
+        'x-wallpaper-source': encodeURIComponent(
+          JSON.stringify({ ...source, url: 'javascript:alert(1)' }),
+        ),
+      },
+      payload: image,
+    });
+    expect(invalid.statusCode).toBe(400);
+    expect((await app.inject('/api/wallpapers')).json()).toHaveLength(1);
+  });
   it('rejects disguised and oversized uploads', async () => {
     const res = await app.inject({
       method: 'POST',

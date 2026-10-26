@@ -1,0 +1,132 @@
+[
+  {
+    "key": "milky",
+    "name": "Milky Way — French Alps",
+    "imageUrl": "https://images.unsplash.com/photo-1515705576963-95cad62945b6?auto=format&fit=max&w=5000&q=92&fm=jpg",
+    "source": {
+      "url": "https://unsplash.com/photos/milky-way-on-mountains-9wH624ALFQA",
+      "author": "Dns Dgn",
+      "license": "Unsplash License"
+    }
+  },
+  {
+    "key": "mountains",
+    "name": "Lofoten — sunset peaks",
+    "imageUrl": "https://images.unsplash.com/photo-1526400473556-aac12354f3db?auto=format&fit=max&w=5000&q=92&fm=jpg",
+    "source": {
+      "url": "https://unsplash.com/photos/landscape-photography-of-snow-coated-mountains-j9w4Tm42Yog",
+      "author": "Pascal Debrunner",
+      "license": "Unsplash License"
+    }
+  },
+  {
+    "key": "forest",
+    "name": "Forest — morning light",
+    "imageUrl": "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=max&w=5000&q=92&fm=jpg",
+    "source": {
+      "url": "https://unsplash.com/photos/trees-on-forest-with-sun-rays-sp-p7uuT0tw",
+      "author": "Sebastian Unrau",
+      "license": "Unsplash License"
+    }
+  },
+  {
+    "key": "mist",
+    "name": "Forest — mist in Adjara",
+    "imageUrl": "https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?auto=format&fit=max&w=5000&q=92&fm=jpg",
+    "source": {
+      "url": "https://unsplash.com/photos/aerial-photo-of-green-trees-ugnrXk1129g",
+      "author": "Marita Kavelashvili",
+      "license": "Unsplash License"
+    }
+  },
+  {
+    "key": "milky-orbit",
+    "name": "Milky Way — above Earth",
+    "imageUrl": "https://www.nasa.gov/wp-content/uploads/2026/03/the-galaxy-next-door-mobile-image-only.png",
+    "source": {
+      "url": "https://www.nasa.gov/wp-content/uploads/2026/03/the-galaxy-next-door-mobile-image-only.png",
+      "author": "NASA",
+      "license": "NASA wallpaper download"
+    }
+  },
+  {
+    "key": "cupola",
+    "name": "ISS — cupola window",
+    "imageUrl": "https://www.nasa.gov/wp-content/uploads/2026/03/window-to-the-world-mobile-image-only.png",
+    "source": {
+      "url": "https://www.nasa.gov/wp-content/uploads/2026/03/window-to-the-world-mobile-image-only.png",
+      "author": "NASA",
+      "license": "NASA wallpaper download"
+    }
+  },
+  {
+    "key": "spacewalk",
+    "name": "ISS — spacewalk",
+    "imageUrl": "https://www.nasa.gov/wp-content/uploads/2026/03/spacewalk-moment-–-mobile-–-image-only.png",
+    "source": {
+      "url": "https://www.nasa.gov/wp-content/uploads/2026/03/spacewalk-moment-–-mobile-–-image-only.png",
+      "author": "NASA",
+      "license": "NASA wallpaper download"
+    }
+  },
+  {
+    "key": "aurora",
+    "name": "Aurora — from orbit",
+    "imageUrl": "https://www.nasa.gov/wp-content/uploads/2026/03/a-wispy-aurora-–-mobile-–-image-only.png",
+    "source": {
+      "url": "https://www.nasa.gov/wp-content/uploads/2026/03/a-wispy-aurora-–-mobile-–-image-only.png",
+      "author": "NASA",
+      "license": "NASA wallpaper download"
+    }
+  },
+  {
+    "key": "sunset",
+    "name": "Earth — orbital sunset",
+    "imageUrl": "https://www.nasa.gov/wp-content/uploads/2026/03/sunset-silhouettes-–-mobile-–-image-only.png",
+    "source": {
+      "url": "https://www.nasa.gov/wp-content/uploads/2026/03/sunset-silhouettes-–-mobile-–-image-only.png",
+      "author": "NASA",
+      "license": "NASA wallpaper download"
+    }
+  },
+  {
+    "key": "tropical",
+    "name": "Ocean — Bahamas from space",
+    "imageUrl": "https://www.nasa.gov/wp-content/uploads/2026/03/tropical-vibes-–-mobile-–-image-only.png",
+    "source": {
+      "url": "https://www.nasa.gov/wp-content/uploads/2026/03/tropical-vibes-–-mobile-–-image-only.png",
+      "author": "NASA",
+      "license": "NASA wallpaper download"
+    }
+  },
+  {
+    "key": "moon",
+    "name": "Moon — above Earth",
+    "imageUrl": "https://www.nasa.gov/wp-content/uploads/2026/03/over-the-horizon-–-mobile-–-image-only.png",
+    "source": {
+      "url": "https://www.nasa.gov/wp-content/uploads/2026/03/over-the-horizon-–-mobile-–-image-only.png",
+      "author": "NASA",
+      "license": "NASA wallpaper download"
+    }
+  },
+  {
+    "key": "solar",
+    "name": "Microgravity — ice crystals",
+    "imageUrl": "https://www.nasa.gov/wp-content/uploads/2026/03/frosty-wafers-–-mobile-–-image-only.png",
+    "source": {
+      "url": "https://www.nasa.gov/wp-content/uploads/2026/03/frosty-wafers-–-mobile-–-image-only.png",
+      "author": "NASA / Don Pettit",
+      "license": "NASA wallpaper download"
+    }
+  },
+  {
+    "key": "station",
+    "name": "ISS — above the clouds",
+    "imageUrl": "https://images-assets.nasa.gov/image/iss066e081311/iss066e081311~orig.jpg",
+    "source": {
+      "url": "https://www.nasa.gov/image-article/space-station-pictured-from-spacex-crew-dragon-10/",
+      "author": "NASA / Crew-2",
+      "license": "NASA image download"
+    }
+  }
+]

@@ -21,3 +21,5 @@ Checks: empty library, starter import, search, favorites, file upload, playlist
 selection and ordering, Galaxy profiles, effect preview, image download, persistence,
 rename and delete. Screenshots are written to ignored `test-results/` at desktop,
 S24 Ultra and S25 viewport sizes. It also checks for horizontal overflow and JS errors.
+
+The harness also checks that installation links are hidden in an Android shell while a newer-version notice still calls the native download method.
