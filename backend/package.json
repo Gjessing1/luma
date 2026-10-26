@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "@fastify/static": "^10.1.5",
-    "fastify": "^5.12.5"
+    "fastify": "^5.12.5",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "tsx": "^4.23.15"

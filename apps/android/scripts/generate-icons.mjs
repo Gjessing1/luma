@@ -19,27 +19,13 @@ const deep = '#1e40af';
 
 // The mark on a 512 canvas, centred on (256, 256), no wider than markWidth: a white rounded card
 // with a deep-blue header bar, a generic "app".
-const markWidth = 320;
+const markWidth = 360;
 
 function mark() {
-  return `
-    <rect x="96" y="96" width="320" height="320" rx="56" fill="#ffffff"/>
-    <rect x="144" y="152" width="224" height="48" rx="16" fill="${deep}"/>
-    <rect x="144" y="232" width="144" height="32" rx="12" fill="${blue}"/>
-    <rect x="144" y="296" width="184" height="32" rx="12" fill="${blue}"/>`;
+  return `<rect x="108" y="76" width="296" height="360" rx="45" fill="#ffffff"/><circle cx="320" cy="170" r="35" fill="${blue}"/><path d="M128 350L215 226L284 315L324 265L384 350V389Q384 412 361 412H151Q128 412 128 389Z" fill="${deep}"/><path d="M128 372L210 294L296 412H151Q128 412 128 389Z" fill="${blue}"/>`;
 }
-
-// Themed icons (Android 13+) are painted in wallpaper colours from alpha alone, so this is one
-// silhouette: the card with the bars cut out.
 function silhouette() {
-  return `
-    <mask id="cut">
-      <rect x="96" y="96" width="320" height="320" rx="56" fill="#ffffff"/>
-      <rect x="144" y="152" width="224" height="48" rx="16" fill="#000000"/>
-      <rect x="144" y="232" width="144" height="32" rx="12" fill="#000000"/>
-      <rect x="144" y="296" width="184" height="32" rx="12" fill="#000000"/>
-    </mask>
-    <rect width="512" height="512" fill="#000000" mask="url(#cut)"/>`;
+  return `<mask id="cut"><rect x="108" y="76" width="296" height="360" rx="45" fill="white"/><circle cx="320" cy="170" r="35" fill="black"/><path d="M128 350L215 226L284 315L324 265L384 350V389Q384 412 361 412H151Q128 412 128 389Z" fill="black"/></mask><rect width="512" height="512" fill="black" mask="url(#cut)"/>`;
 }
 
 function tile(radius) {

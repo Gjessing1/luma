@@ -7,10 +7,20 @@ export function AppUpdateNotice() {
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
 
-  useEffect(function checkOnOpen() {
-    checkAppUpdate()
-      .then(setUpdate)
-      .catch(() => setUpdate(null));
+  useEffect(function checkForUpdates() {
+    function check() {
+      if (!document.hidden)
+        checkAppUpdate()
+          .then(setUpdate)
+          .catch(() => {});
+    }
+    check();
+    const timer = window.setInterval(check, 6 * 60 * 60 * 1000);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', check);
+    };
   }, []);
 
   if (!update) {

@@ -34,7 +34,17 @@ export default tseslint.config(
     languageOptions: { globals: globals.browser },
   },
   {
-    files: ['scripts/**/*.mjs', 'apps/android/scripts/**/*.mjs', 'eslint.config.js'],
+    files: [
+      'scripts/**/*.mjs',
+      'apps/android/scripts/**/*.mjs',
+      'apps/web/e2e/**/*.mjs',
+      'apps/android/e2e/**/*.mjs',
+      'eslint.config.js',
+    ],
     languageOptions: { globals: globals.node },
+  },
+  {
+    files: ['apps/web/e2e/**/*.mjs', 'apps/android/e2e/**/*.mjs'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
 );

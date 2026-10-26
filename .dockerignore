@@ -22,3 +22,6 @@ data
 *.sqlite-wal
 # The Capacitor shell is built on the host by scripts/release-android.sh, never in the image.
 apps/android
+# Verification artifacts never enter a production image.
+test-results
+playwright-report

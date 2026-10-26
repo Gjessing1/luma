@@ -1,0 +1,70 @@
+import {
+  defaultRotation,
+  validateRotation,
+  type Rotation,
+  type Wallpaper,
+} from '@luma/core/wallpaper';
+
+export interface NativeState {
+  config?: Rotation;
+  nextAt?: number;
+  lastApplied?: number;
+  lastId?: string;
+  error?: string;
+  model?: string;
+}
+export interface WallpaperBridge {
+  getState(): Promise<NativeState>;
+  configure(options: { config: Rotation }): Promise<NativeState>;
+  apply(options: { config: Rotation }): Promise<NativeState>;
+  next(): Promise<NativeState>;
+  pause(): Promise<NativeState>;
+  exportImage(options: { id: string; config: Rotation }): Promise<void>;
+  openWallpaperSettings(): Promise<void>;
+}
+export function wallpaperBridge(): WallpaperBridge | null {
+  return window.Capacitor?.Plugins?.Wallpaper ?? null;
+}
+export function imageUrl(id: string, config: Rotation, thumb = false): string {
+  const query = new URLSearchParams({
+    device: config.device,
+    x: String(config.focalX),
+    y: String(config.focalY),
+    dim: String(config.effects.dim),
+    blur: String(config.effects.blur),
+    warmth: String(config.effects.warmth),
+    grayscale: config.effects.grayscale ? '1' : '0',
+    thumb: thumb ? '1' : '0',
+  });
+  return `/api/wallpapers/${id}/image?${query}`;
+}
+export function loadRotation(): Rotation {
+  try {
+    const saved = JSON.parse(localStorage.getItem('luma.rotation') ?? 'null') as Rotation | null;
+    const config = saved
+      ? { ...defaultRotation, ...saved, effects: { ...defaultRotation.effects, ...saved.effects } }
+      : structuredClone(defaultRotation);
+    validateRotation(config);
+    return config;
+  } catch {
+    return structuredClone(defaultRotation);
+  }
+}
+export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, init);
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `Request failed (${response.status})`);
+  }
+  return response.json() as Promise<T>;
+}
+export async function upload(file: File): Promise<Wallpaper> {
+  return api('/api/wallpapers', {
+    method: 'POST',
+    headers: {
+      'Content-Type': file.type || 'image/jpeg',
+      'X-File-Name': encodeURIComponent(file.name),
+    },
+    body: file,
+  });
+}

@@ -25,6 +25,22 @@ if [[ ! -d "$(dirname "$app_dir")" ]]; then
   exit 1
 fi
 
+# Published versions are immutable: Android orders updates by versionCode.
+if [[ -f "$app_dir/version.json" ]]; then
+  node -e '
+    const fs = require("node:fs");
+    const previous = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    if (Number(process.argv[2]) <= previous.versionCode) {
+      console.error("Bump versionCode and versionName before publishing another APK");
+      process.exit(1);
+    }
+  ' "$app_dir/version.json" "$version_code"
+fi
+if [[ -e "$app_dir/luma-$version_name.apk" ]]; then
+  echo "Refusing to overwrite a released version; bump versionName" >&2
+  exit 1
+fi
+
 apk="$("$root/apps/android/build-apk.sh" | tail -1)"
 
 aapt="$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -type f -name aapt | sort -V | tail -1)"
@@ -49,7 +65,8 @@ fi
 
 file="luma-$version_name.apk"
 mkdir -p "$app_dir"
-install -m 0644 "$apk" "$app_dir/$file"
+install -m 0644 "$apk" "$app_dir/.$file.tmp"
+mv "$app_dir/.$file.tmp" "$app_dir/$file"
 sha256="$(sha256sum "$app_dir/$file" | cut -d ' ' -f 1)"
 # Written last and renamed into place, so the API never names an APK that is still copying.
 metadata_tmp="$app_dir/.version.json.$$"

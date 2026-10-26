@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!--
       Lets the WebView hand Credential Manager the web origin of a passkey request
       (WebAuthn browser mode, see MainActivity). Protection level normal: granted at
@@ -33,6 +35,15 @@
 
             <!-- A share target goes here as SEND / SEND_MULTIPLE filters (docs/ANDROID.md recipes). -->
         </activity>
+
+        <receiver android:name=".WallpaperAlarmReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"

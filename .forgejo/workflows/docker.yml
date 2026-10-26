@@ -13,9 +13,8 @@
 #   capacity 1 shared by every repo, so a separate `needs:` job queues for a
 #   second turn and gets auto-cancelled if another commit lands meanwhile —
 #   silently skipping the deploy while the run shows green.
-# - DEPLOY_DIR must be bind-mounted into jobs by the runner
-#   (/home/gjessing/docker/forgejo/runner-config.yml: container.options +
-#   valid_volumes). scripts/host-setup.sh prints the exact lines.
+# - scripts/ci-deploy.sh reads only this app’s deploy files through the host
+#   daemon; no shared runner configuration changes are required.
 name: docker
 
 on:
@@ -92,21 +91,18 @@ jobs:
       - name: Pull and restart
         if: github.ref == 'refs/heads/main'
         run: |
-          cd "$DEPLOY_DIR"
-          docker compose pull
-          docker compose up -d --remove-orphans
+          scripts/ci-deploy.sh
 
       # Fail loudly if the stack came back on the old image, so a lost deploy
       # shows up as a red run instead of a green one with a stale container.
       - name: Verify deploy
         if: github.ref == 'refs/heads/main'
         run: |
-          cd "$DEPLOY_DIR"
           built=$(docker image inspect --format '{{.Id}}' "$IMAGE:latest")
-          running=$(docker compose ps -q | xargs -r docker inspect --format '{{.Image}}')
+          running=$(docker inspect --format '{{.Image}}' luma-backend)
           if ! printf '%s\n' "$running" | grep -qFx "$built"; then
             echo "no running container uses the image just built ($built)" >&2
-            docker compose ps >&2
+            docker ps --filter name=luma-backend >&2
             exit 1
           fi
           for attempt in $(seq 1 20); do

@@ -3,6 +3,7 @@ import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
 import type { HealthReport } from '@luma/core';
 import { registerAppReleaseRoutes } from './app-release-routes.js';
+import { registerWallpaperRoutes } from './wallpaper-routes.js';
 import type { Config } from './config.js';
 
 export async function buildApp(config: Config) {
@@ -12,6 +13,7 @@ export async function buildApp(config: Config) {
     return { ok: true, name: 'luma', version: config.version, gitSha: config.gitSha };
   });
   registerAppReleaseRoutes(app, config.dataDir);
+  registerWallpaperRoutes(app, config.dataDir);
 
   if (existsSync(config.webRoot)) {
     await app.register(fastifyStatic, { root: config.webRoot });

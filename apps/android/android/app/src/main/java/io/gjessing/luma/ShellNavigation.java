@@ -14,8 +14,8 @@ final class ShellNavigation {
     }
 
     boolean shouldAllow(Uri target) {
-        if (!"https".equals(target.getScheme())) return false;
         if (sameOrigin(target, serverOrigin)) return true;
+        if (!"https".equals(target.getScheme())) return false;
         if (isAuthenticationEntry(target)) {
             authenticationOrigins.add(origin(target));
             return true;

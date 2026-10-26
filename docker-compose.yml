@@ -21,3 +21,9 @@ services:
         target: /data
         bind:
           create_host_path: false
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.48.0/24

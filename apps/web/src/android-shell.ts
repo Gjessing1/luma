@@ -1,3 +1,4 @@
+import type { WallpaperBridge } from './wallpaper-client';
 // The Android shell (A7) injects Capacitor's bridge into the hosted page. Reaching it through
 // window.Capacitor keeps the web app free of a Capacitor dependency, and inert in a browser.
 
@@ -15,7 +16,7 @@ interface AppShell {
 declare global {
   interface Window {
     Capacitor?: {
-      Plugins?: { AppShell?: AppShell };
+      Plugins?: { AppShell?: AppShell; Wallpaper?: WallpaperBridge };
     };
   }
 }

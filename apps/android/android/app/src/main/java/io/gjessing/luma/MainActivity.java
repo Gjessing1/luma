@@ -34,6 +34,7 @@ public class MainActivity extends BridgeActivity {
             .setInitialFocus(true)
             .create();
         registerPlugin(AppShellPlugin.class);
+        registerPlugin(WallpaperPlugin.class);
         super.onCreate(savedInstanceState);
         enableWebAuthentication();
         if (bridge != null) bridge.setWebViewClient(new ShellWebViewClient(bridge, this));

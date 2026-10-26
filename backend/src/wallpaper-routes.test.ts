@@ -1,0 +1,107 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import sharp from 'sharp';
+import { buildApp } from './app.js';
+import { loadConfig } from './config.js';
+import type { Wallpaper } from '@luma/core/wallpaper';
+
+describe('wallpaper library', () => {
+  let directory: string;
+  let app: Awaited<ReturnType<typeof buildApp>>;
+  beforeEach(async () => {
+    directory = await mkdtemp(join(tmpdir(), 'luma-test-'));
+    app = await buildApp({
+      ...loadConfig({ LOG_LEVEL: 'silent' }),
+      dataDir: directory,
+      webRoot: '/nonexistent',
+    });
+  });
+  afterEach(async () => {
+    await app.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  async function upload() {
+    const image = await sharp({
+      create: { width: 900, height: 600, channels: 3, background: '#e08040' },
+    })
+      .png()
+      .toBuffer();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/wallpapers',
+      headers: { 'content-type': 'image/png', 'x-file-name': 'Landscape.png' },
+      payload: image,
+    });
+    expect(res.statusCode).toBe(201);
+    return res.json<Wallpaper>();
+  }
+  it('persists concurrent uploads, edits favorites, renders both sizes, and deletes safely', async () => {
+    const rows = await Promise.all([upload(), upload(), upload()]);
+    expect((await app.inject('/api/wallpapers')).json()).toHaveLength(3);
+    const row = rows[0]!;
+    expect(row.name).toBe('Landscape');
+    const edit = await app.inject({
+      method: 'PATCH',
+      url: `/api/wallpapers/${row.id}`,
+      payload: { name: 'Sunrise', favorite: true },
+    });
+    expect(edit.json()).toMatchObject({ name: 'Sunrise', favorite: true });
+    for (const [device, width, height] of [
+      ['s24-ultra', 1440, 3120],
+      ['s25', 1080, 2340],
+    ] as const) {
+      const render = await app.inject(
+        `/api/wallpapers/${row.id}/image?device=${device}&dim=35&blur=20&warmth=15&grayscale=1`,
+      );
+      expect(render.statusCode).toBe(200);
+      expect(await sharp(render.rawPayload).metadata()).toMatchObject({
+        width,
+        height,
+        format: 'jpeg',
+      });
+    }
+    expect((await app.inject(`/api/wallpapers/${row.id}/image?device=__proto__`)).statusCode).toBe(
+      400,
+    );
+    expect((await app.inject(`/api/wallpapers/${row.id}/image?dim=NaN`)).statusCode).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: 'PATCH',
+          url: `/api/wallpapers/${row.id}`,
+          payload: { favorite: 'yes' },
+        })
+      ).statusCode,
+    ).toBe(400);
+    expect(
+      (await app.inject({ method: 'DELETE', url: `/api/wallpapers/${row.id}` })).statusCode,
+    ).toBe(200);
+    expect((await app.inject(`/api/wallpapers/${row.id}/image`)).statusCode).toBe(404);
+    const restarted = await buildApp({
+      ...loadConfig({ LOG_LEVEL: 'silent' }),
+      dataDir: directory,
+      webRoot: '/nonexistent',
+    });
+    expect((await restarted.inject('/api/wallpapers')).json()).toHaveLength(2);
+    await restarted.close();
+  });
+  it('rejects disguised and oversized uploads', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/wallpapers',
+      headers: { 'content-type': 'image/png' },
+      payload: Buffer.from('<script>alert(1)</script>'),
+    });
+    expect(res.statusCode).toBe(400);
+    const large = await app.inject({
+      method: 'POST',
+      url: '/api/wallpapers',
+      headers: { 'content-type': 'image/png' },
+      payload: Buffer.alloc(25 * 1024 * 1024 + 1),
+    });
+    expect(large.statusCode).toBe(413);
+    expect((await app.inject('/api/wallpapers')).json()).toEqual([]);
+  });
+});

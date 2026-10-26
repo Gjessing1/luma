@@ -1,35 +1,499 @@
-import { useEffect, useState } from 'react';
-import { describeVersion, type HealthReport } from '@luma/core';
+import { useEffect, useRef, useState } from 'react';
+import { devices, validateRotation, type Rotation, type Wallpaper } from '@luma/core/wallpaper';
+import { appShell } from './android-shell';
+import { downloadAppUpdate, type PublishedApp } from './app-update';
 import { AppUpdateNotice } from './AppUpdateNotice';
+import { RotationSettings } from './RotationSettings';
+import { WallpaperDetail } from './WallpaperDetail';
+import {
+  api,
+  imageUrl,
+  loadRotation,
+  upload,
+  wallpaperBridge,
+  type NativeState,
+} from './wallpaper-client';
 
 export function App() {
-  const [health, setHealth] = useState<HealthReport | null>(null);
-  const [error, setError] = useState('');
-
-  useEffect(function loadHealth() {
-    fetch('/api/health')
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-        return res.json() as Promise<HealthReport>;
-      })
-      .then(setHealth)
-      .catch((err: unknown) => setError(String(err)));
-  }, []);
-
-  let status = 'Connecting…';
-  if (error !== '') {
-    status = `Backend unreachable: ${error}`;
-  } else if (health) {
-    status = describeVersion(health);
-  }
-
-  return (
-    <main className="page">
-      <h1>Luma</h1>
-      <p>{status}</p>
-      <AppUpdateNotice />
-    </main>
+  const [wallpapers, setWallpapers] = useState<Wallpaper[]>([]);
+  const [config, setConfig] = useState<Rotation>(loadRotation);
+  const [native, setNative] = useState<NativeState>({});
+  const [tab, setTab] = useState<'library' | 'playlist' | 'schedule'>(() => {
+    const saved = localStorage.getItem('luma.tab');
+    return saved === 'playlist' || saved === 'schedule' ? saved : 'library';
+  });
+  const [query, setQuery] = useState('');
+  const [favorites, setFavorites] = useState(false);
+  const [selected, setSelected] = useState<string | null>(() =>
+    localStorage.getItem('luma.preview'),
   );
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [release, setRelease] = useState<PublishedApp | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const hadDraft = useRef(localStorage.getItem('luma.rotation') !== null);
+  async function refresh() {
+    setWallpapers(await api<Wallpaper[]>('/api/wallpapers'));
+  }
+  function refreshNative(state: NativeState) {
+    setNative(state);
+    if (state.config) setConfig(state.config);
+  }
+  useEffect(() => {
+    refresh()
+      .catch((e) => setError(String(e)))
+      .finally(() => setLoading(false));
+    wallpaperBridge()
+      ?.getState()
+      .then((state) => {
+        setNative(state);
+        if (state.config && !hadDraft.current) setConfig(state.config);
+        else if (!hadDraft.current && state.model?.startsWith('SM-S931'))
+          setConfig((c) => ({ ...c, device: 's25' }));
+      })
+      .catch((e) => setError(String(e)));
+    api<PublishedApp>('/api/app/version')
+      .then(setRelease)
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    localStorage.setItem('luma.rotation', JSON.stringify(config));
+  }, [config]);
+  useEffect(() => {
+    localStorage.setItem('luma.tab', tab);
+  }, [tab]);
+  useEffect(() => {
+    if (selected) localStorage.setItem('luma.preview', selected);
+    else localStorage.removeItem('luma.preview');
+  }, [selected]);
+  useEffect(() => {
+    function refreshState() {
+      if (!document.hidden)
+        wallpaperBridge()
+          ?.getState()
+          .then(setNative)
+          .catch(() => {});
+    }
+    document.addEventListener('visibilitychange', refreshState);
+    return () => document.removeEventListener('visibilitychange', refreshState);
+  }, []);
+  async function run(action: () => Promise<void>) {
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      await action();
+      setNotice('Saved successfully.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  function move(id: string, offset: number) {
+    const ids = [...config.ids];
+    const index = ids.indexOf(id);
+    const other = index + offset;
+    if (index < 0 || other < 0 || other >= ids.length) return;
+    [ids[index], ids[other]] = [ids[other]!, ids[index]!];
+    setConfig({ ...config, ids });
+  }
+  function toggle(id: string) {
+    setConfig((c) => ({
+      ...c,
+      ids: c.ids.includes(id) ? c.ids.filter((item) => item !== id) : [...c.ids, id],
+    }));
+  }
+  async function importFiles(files: FileList | null) {
+    if (!files?.length) return;
+    await run(async () => {
+      let imported = 0;
+      try {
+        for (const file of files) {
+          setNotice(`Importing ${++imported} of ${files.length}…`);
+          await upload(file);
+        }
+      } finally {
+        await refresh();
+        if (input.current) input.current.value = '';
+      }
+    });
+  }
+  const visible = wallpapers.filter(
+    (w) =>
+      (!favorites || w.favorite) &&
+      (tab !== 'playlist' || config.ids.includes(w.id)) &&
+      w.name.toLowerCase().includes(query.toLowerCase()),
+  );
+  if (tab === 'playlist')
+    visible.sort((a, b) => config.ids.indexOf(a.id) - config.ids.indexOf(b.id));
+  const detail = wallpapers.find((w) => w.id === selected);
+  const profile = devices[config.device];
+  const missing = config.ids.filter((id) => !wallpapers.some((w) => w.id === id));
+  return (
+    <div className="app-layout">
+      <aside className="sidebar">
+        <a className="brand" href="/">
+          <img src="/favicon.svg" alt="" />
+          <span>
+            luma<span className="brand-dot">.</span>
+          </span>
+        </a>
+        <span className="sidebar-label">YOUR WALLPAPER STUDIO</span>
+        <nav>
+          {(
+            [
+              ['library', '▦', 'Library'],
+              ['playlist', '◫', 'My playlist'],
+              ['schedule', '◷', 'Schedule'],
+            ] as const
+          ).map(([key, icon, title]) => (
+            <button
+              className={tab === key ? 'nav-active' : ''}
+              key={key}
+              aria-label={title}
+              onClick={() => setTab(key)}
+            >
+              <span>{icon}</span>
+              {title}
+              <small>
+                {key === 'library'
+                  ? wallpapers.length
+                  : key === 'playlist'
+                    ? config.ids.length
+                    : ''}
+              </small>
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-bottom">
+          <span className="device-symbol">▯</span>
+          <strong>{profile.name}</strong>
+          <span>
+            {profile.width} × {profile.height}
+          </span>
+          <span className="device-local">
+            {wallpaperBridge() ? 'Android connected' : 'Browser studio'}
+          </span>
+        </div>
+      </aside>
+      <main>
+        <header className="topbar">
+          <span>
+            <span className="online-dot" /> A little change. Every day.
+          </span>
+          <a href="#android">Get the Android app ↗</a>
+        </header>
+        <AppUpdateNotice />
+        <section className="intro">
+          <div>
+            <span className="eyebrow">A FRESH PERSPECTIVE</span>
+            <h1>
+              {tab === 'library'
+                ? 'Your next favorite view.'
+                : tab === 'playlist'
+                  ? 'A change of scenery.'
+                  : 'Set it. Let it change.'}
+            </h1>
+            <p>
+              {tab === 'library'
+                ? 'Collect beautiful backgrounds. Make your Galaxy feel like you.'
+                : tab === 'playlist'
+                  ? 'Choose the views that take turns on your phone.'
+                  : 'The right wallpaper, at the right moment.'}
+            </p>
+          </div>
+          <button
+            className="primary upload-button"
+            disabled={busy}
+            onClick={() => input.current?.click()}
+          >
+            <span>+</span> Add wallpapers
+          </button>
+          <input
+            ref={input}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/avif"
+            multiple
+            hidden
+            onChange={(e) => {
+              void importFiles(e.target.files);
+            }}
+          />
+        </section>
+        {error && (
+          <div role="alert" className="alert error">
+            {error}
+            <button onClick={() => setError('')} aria-label="Dismiss error">
+              ×
+            </button>
+          </div>
+        )}
+        {notice && (
+          <div role="status" className="alert">
+            {notice}
+          </div>
+        )}
+        {tab === 'schedule' ? (
+          <RotationSettings
+            config={config}
+            setConfig={setConfig}
+            state={native}
+            busy={busy}
+            run={(action) => {
+              validateAndRun(action);
+            }}
+            refreshNative={refreshNative}
+          />
+        ) : (
+          <>
+            <section className="collection-banner">
+              <div className="banner-orbit" />
+              <div>
+                <span className="eyebrow">DESIGNED FOR YOUR GALAXY</span>
+                <h2>A world beyond your home screen.</h2>
+                <p>One shared collection. A personal rhythm on every phone.</p>
+                <button onClick={() => setTab('schedule')}>
+                  Set up your rotation <span>↗</span>
+                </button>
+              </div>
+              <div className="banner-device">
+                <span>19.5:9</span>
+                <small>PERFECTLY FRAMED</small>
+              </div>
+            </section>
+            <div className="library-toolbar">
+              <div className="filter-tabs">
+                <button
+                  className={!favorites ? 'filter-active' : ''}
+                  onClick={() => setFavorites(false)}
+                >
+                  All wallpapers{' '}
+                  <small>{tab === 'playlist' ? config.ids.length : wallpapers.length}</small>
+                </button>
+                <button
+                  className={favorites ? 'filter-active' : ''}
+                  onClick={() => setFavorites(true)}
+                >
+                  ♡ Favorites
+                </button>
+              </div>
+              <input
+                type="search"
+                aria-label="Search wallpapers"
+                placeholder="Search your collection…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+            {tab === 'playlist' && (
+              <div className="playlist-note">
+                <p>
+                  {config.ids.length} selected · {config.shuffle ? 'Shuffled' : 'Selection order'} ·{' '}
+                  {config.mode === 'interval'
+                    ? `Every ${config.intervalMinutes} minutes`
+                    : config.dailyTimes.join(', ')}
+                </p>
+                <button onClick={() => setTab('schedule')}>Save playlist & schedule ↗</button>
+              </div>
+            )}
+            {missing.length > 0 && (
+              <div className="alert">
+                {missing.length} playlist image(s) were removed from the library.
+                <button
+                  onClick={() =>
+                    setConfig({ ...config, ids: config.ids.filter((id) => !missing.includes(id)) })
+                  }
+                >
+                  Remove missing entries
+                </button>
+              </div>
+            )}
+            {loading ? (
+              <div className="empty-state">Loading your collection…</div>
+            ) : visible.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">▧</div>
+                <h2>
+                  {query || favorites
+                    ? 'No matching views yet.'
+                    : tab === 'playlist'
+                      ? 'Build a playlist you love.'
+                      : 'Your collection starts here.'}
+                </h2>
+                <p>
+                  {tab === 'playlist'
+                    ? 'Add wallpapers from your library with the playlist button.'
+                    : 'Upload photos, art, or a favorite landscape. Images stay in your private library.'}
+                </p>
+                <button
+                  onClick={() => (tab === 'playlist' ? setTab('library') : input.current?.click())}
+                >
+                  {tab === 'playlist' ? 'Browse library' : 'Add your first wallpaper'}
+                </button>
+                {tab === 'library' && !query && !favorites && (
+                  <button
+                    className="starter-button"
+                    disabled={busy}
+                    onClick={() => {
+                      void run(async () => {
+                        setNotice('Creating your starter collection…');
+                        await api('/api/wallpapers/starter', { method: 'POST' });
+                        await refresh();
+                      });
+                    }}
+                  >
+                    Try the starter collection ↗
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="wallpaper-grid">
+                {visible.map((w) => (
+                  <article className="wallpaper-card" key={w.id}>
+                    <button
+                      className="wallpaper-image"
+                      onClick={() => setSelected(w.id)}
+                      aria-label={`Preview ${w.name}`}
+                    >
+                      <img loading="lazy" src={imageUrl(w.id, config, true)} alt={w.name} />
+                      <span className="image-type">IMAGE</span>
+                      <span className="preview-label">Preview & style ↗</span>
+                    </button>
+                    <button
+                      className={`favorite-button ${w.favorite ? 'is-favorite' : ''}`}
+                      aria-label={`${w.favorite ? 'Unfavorite' : 'Favorite'} ${w.name}`}
+                      onClick={() => {
+                        void run(async () => {
+                          await api(`/api/wallpapers/${w.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ favorite: !w.favorite }),
+                          });
+                          await refresh();
+                        });
+                      }}
+                    >
+                      {w.favorite ? '♥' : '♡'}
+                    </button>
+                    <div className="card-info">
+                      <div>
+                        <h3>{w.name}</h3>
+                        <span>
+                          {tab === 'playlist' ? `${config.ids.indexOf(w.id) + 1} · ` : ''}
+                          {w.width} × {w.height}
+                        </span>
+                      </div>
+                      <button
+                        className={`playlist-add ${config.ids.includes(w.id) ? 'is-added' : ''}`}
+                        aria-label={`${config.ids.includes(w.id) ? 'Remove from' : 'Add to'} playlist: ${w.name}`}
+                        onClick={() => toggle(w.id)}
+                      >
+                        {config.ids.includes(w.id) ? '✓' : '+'}
+                      </button>
+                    </div>
+                    {tab === 'playlist' && (
+                      <div className="playlist-order">
+                        <button
+                          aria-label={`Move ${w.name} earlier`}
+                          disabled={config.ids.indexOf(w.id) === 0}
+                          onClick={() => move(w.id, -1)}
+                        >
+                          ← Earlier
+                        </button>
+                        <button
+                          aria-label={`Move ${w.name} later`}
+                          disabled={config.ids.indexOf(w.id) === config.ids.length - 1}
+                          onClick={() => move(w.id, 1)}
+                        >
+                          Later →
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            )}
+            <div className="collection-footer">
+              <span>{visible.length} views. Endless possibilities.</span>
+              <span>Made for your everyday.</span>
+            </div>
+          </>
+        )}
+        <section className="android-panel" id="android">
+          <div className="android-mark">↧</div>
+          <div>
+            <span className="eyebrow">TAKE YOUR COLLECTION WITH YOU</span>
+            <h2>Luma for Android</h2>
+            <p>Offline rotation, Galaxy framing, and updates delivered in the app.</p>
+            <small>
+              {release
+                ? `Latest release ${release.versionName} · ${(release.bytes / 1048576).toFixed(1)} MB`
+                : 'The first signed release is being prepared.'}
+            </small>
+          </div>
+          <a
+            className={`button ${release ? 'primary' : ''}`}
+            href={release ? '/api/app/download' : '#android'}
+            onClick={(e) => {
+              if (!release) e.preventDefault();
+              else if (appShell()) {
+                e.preventDefault();
+                void run(() => downloadAppUpdate(release));
+              }
+            }}
+          >
+            Download APK ↗
+          </a>
+        </section>
+        <footer>
+          <span>
+            luma. <span className="muted">Your personal wallpaper studio.</span>
+          </span>
+          <span>Galaxy S24 Ultra & S25 · v0.1.0</span>
+        </footer>
+      </main>
+      {detail && (
+        <WallpaperDetail
+          wallpaper={detail}
+          config={config}
+          setConfig={setConfig}
+          close={() => setSelected(null)}
+          busy={busy}
+          run={(action) => {
+            void run(action);
+          }}
+          apply={async () => {
+            validateRotation(config);
+            const state = await wallpaperBridge()!.apply({
+              config: { ...config, ids: [detail.id], enabled: false },
+            });
+            setNative(state);
+          }}
+          remove={async () => {
+            await api(`/api/wallpapers/${detail.id}`, { method: 'DELETE' });
+            setConfig((c) => ({ ...c, ids: c.ids.filter((id) => id !== detail.id) }));
+            setSelected(null);
+            await refresh();
+          }}
+          rename={async (name) => {
+            await api(`/api/wallpapers/${detail.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name }),
+            });
+            await refresh();
+          }}
+        />
+      )}
+    </div>
+  );
+  function validateAndRun(action: () => Promise<void>) {
+    void run(async () => {
+      validateRotation(config);
+      await action();
+    });
+  }
 }
