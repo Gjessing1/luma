@@ -26,17 +26,13 @@ export function S24WorkPage() {
             </clipPath>
           </defs>
           <rect width={width} height="424" rx="47" fill={index === 0 ? '#9a9689' : '#a0ada0'} />
-          <svg
-            width={width}
-            height="424"
-            viewBox="0 0 307 424"
-            preserveAspectRatio="none"
-            clipPath={`url(#s24-photo-${index})`}
-          >
-            <path d="m0 290 89-85 78 71 60-45 80 82v73H0z" fill="#526957" />
-            <path d="m0 344 77-47 102 52 75-60 53 55v80H0z" fill="#314d43" />
-            <circle cx="224" cy="99" r="37" fill="#e1d5b6" />
-          </svg>
+          <g clipPath={`url(#s24-photo-${index})`}>
+            <svg width={width} height="424" viewBox="0 0 307 424" preserveAspectRatio="none">
+              <path d="m0 290 89-85 78 71 60-45 80 82v73H0z" fill="#526957" />
+              <path d="m0 344 77-47 102 52 75-60 53 55v80H0z" fill="#314d43" />
+              <circle cx="224" cy="99" r="37" fill="#e1d5b6" />
+            </svg>
+          </g>
           <rect x="20" y="321" width="200" height="78" rx="19" fill="#15181999" />
           <text x="36" y="372" fill="white" fontSize="30">
             {index === 0 ? 'Photos' : 'Memories'}
