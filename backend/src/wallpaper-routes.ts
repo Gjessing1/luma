@@ -113,7 +113,12 @@ export function registerWallpaperRoutes(app: FastifyInstance, dataDir: string) {
           ]);
         if (dim > 0) image = image.modulate({ brightness: 1 - dim / 100 });
         reply.type('image/jpeg').header('Cache-Control', 'private, max-age=86400');
-        return await image.jpeg({ quality: q.thumb === '1' ? 78 : 93 }).toBuffer();
+        return await image
+          .jpeg({
+            quality: q.thumb === '1' ? 78 : 96,
+            chromaSubsampling: q.thumb === '1' ? '4:2:0' : '4:4:4',
+          })
+          .toBuffer();
       } catch {
         return reply.code(400).send({ error: 'Could not render wallpaper' });
       }

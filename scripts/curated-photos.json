@@ -128,5 +128,65 @@
       "author": "NASA / Crew-2",
       "license": "NASA image download"
     }
+  },
+  {
+    "key": "milky-stargazer",
+    "name": "Milky Way — quiet silhouette",
+    "imageUrl": "https://images.pexels.com/photos/1906658/pexels-photo-1906658.jpeg",
+    "source": {
+      "url": "https://www.pexels.com/photo/silhouette-photography-of-person-under-starry-sky-1906658/",
+      "author": "egil sjøholt",
+      "license": "Pexels License"
+    }
+  },
+  {
+    "key": "milky-stargazing",
+    "name": "Milky Way — stargazing in blue",
+    "imageUrl": "https://images.pexels.com/photos/18128051/pexels-photo-18128051.jpeg",
+    "source": {
+      "url": "https://www.pexels.com/photo/people-sitting-and-watching-the-night-sky-18128051/",
+      "author": "Zakhar Vozhdaienko",
+      "license": "Pexels License"
+    }
+  },
+  {
+    "key": "milky-mountain",
+    "name": "Milky Way — dark mountain sky",
+    "imageUrl": "https://images.pexels.com/photos/33600756/pexels-photo-33600756.jpeg",
+    "source": {
+      "url": "https://www.pexels.com/photo/stunning-milky-way-over-mountain-silhouette-33600756/",
+      "author": "Ahmet Yüksek",
+      "license": "Pexels License"
+    }
+  },
+  {
+    "key": "dunes-soft",
+    "name": "Dunes — soft light",
+    "imageUrl": "https://images.pexels.com/photos/35483689/pexels-photo-35483689.jpeg",
+    "source": {
+      "url": "https://www.pexels.com/photo/abstract-minimalist-sand-dune-landscape-35483689/",
+      "author": "Stephen Leonardi",
+      "license": "Pexels License"
+    }
+  },
+  {
+    "key": "ocean-dusk",
+    "name": "Ocean — last light",
+    "imageUrl": "https://images.pexels.com/photos/29336285/pexels-photo-29336285.jpeg",
+    "source": {
+      "url": "https://www.pexels.com/photo/tranquil-ocean-horizon-at-dusk-29336285/",
+      "author": "Sunny Disposition Productions",
+      "license": "Pexels License"
+    }
+  },
+  {
+    "key": "aurora-reflection",
+    "name": "Northern lights — still water",
+    "imageUrl": "https://images.pexels.com/photos/2113566/pexels-photo-2113566.jpeg",
+    "source": {
+      "url": "https://www.pexels.com/photo/mountain-beside-body-of-water-with-aurora-borealis-2113566/",
+      "author": "Tobias Bjørkli",
+      "license": "Pexels License"
+    }
   }
 ]

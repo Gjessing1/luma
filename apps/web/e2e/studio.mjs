@@ -74,6 +74,39 @@ try {
   await page.getByRole('button', { name: 'AMOLED night' }).click();
   await page.locator('.phone-preview img').evaluate((img) => img.decode());
   assert.match(await page.locator('.phone-preview img').getAttribute('src'), /dim=35/);
+  await page.getByLabel('Horizontal position').fill('75');
+  await page.getByLabel('Vertical position').fill('20');
+  await page.getByRole('button', { name: 'Reset position', exact: true }).click();
+  assert.equal(await page.getByLabel('Horizontal position').inputValue(), '50');
+  await page.getByRole('button', { name: 'Undo adjustment', exact: true }).click();
+  assert.equal(await page.getByLabel('Horizontal position').inputValue(), '75');
+  assert.equal(await page.getByLabel('Vertical position').inputValue(), '20');
+  await page.getByRole('button', { name: 'Reset all adjustments', exact: true }).click();
+  assert.equal(await page.getByLabel('Horizontal position').inputValue(), '50');
+  assert.equal(await page.getByLabel('Dim ·').inputValue(), '0');
+  await page.getByRole('button', { name: 'Undo adjustment', exact: true }).click();
+  assert.equal(await page.getByLabel('Dim ·').inputValue(), '35');
+  await page.getByRole('button', { name: 'Widgets', exact: true }).click();
+  await page.locator('.preview-music').waitFor();
+  await page.getByRole('button', { name: 'Lock', exact: true }).click();
+  await page.locator('.clock').waitFor();
+  await page.getByRole('button', { name: 'Image', exact: true }).click();
+  assert.equal(await page.locator('.preview-apps, .clock').count(), 0);
+  await page.getByRole('button', { name: 'Home', exact: true }).click();
+  await page.getByRole('button', { name: 'Close preview' }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  await page.getByRole('button', { name: 'Preview Blue hour' }).click();
+  assert.equal(await page.getByLabel('Dim ·').inputValue(), '0');
+  assert.equal(await page.getByLabel('Horizontal position').inputValue(), '50');
+  await page.goBack();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  await page.getByRole('button', { name: 'Preview Emerald tide' }).click();
+  assert.equal(await page.getByLabel('Dim ·').inputValue(), '35');
+  assert.equal(await page.getByLabel('Horizontal position').inputValue(), '75');
+  await page.reload();
+  await page.getByRole('dialog').waitFor();
+  assert.equal(await page.getByLabel('Dim ·').inputValue(), '35');
+  assert.equal(await page.getByLabel('Horizontal position').inputValue(), '75');
   const download = await page.request.get(
     new URL(await page.getByRole('link', { name: 'Download image' }).getAttribute('href'), origin)
       .href,
@@ -125,6 +158,12 @@ try {
       `${name} must not overflow`,
     );
   }
+  await page.getByRole('button', { name: 'My playlist' }).click();
+  await page.getByRole('button', { name: 'Schedule', exact: true }).click();
+  await page.goBack();
+  await page.getByRole('heading', { name: 'Playlist', exact: true }).waitFor();
+  await page.goBack();
+  await page.getByRole('heading', { name: 'Library', exact: true }).waitFor();
   // Browser install link is quiet; Android only offers a download for a newer installed version.
   await page.route('**/api/app/version', (route) =>
     route.fulfill({ json: { versionCode: 1, versionName: '0.1.0', bytes: 3000000 } }),
@@ -142,7 +181,13 @@ try {
             window.testDownload = options;
           },
         },
-        Wallpaper: { getState: async () => ({ model: 'SM-S928B' }) },
+        Wallpaper: {
+          getState: async () => ({ model: 'SM-S928B', supportsStyles: true }),
+          apply: async (options) => {
+            window.testApply = options.config;
+            return {};
+          },
+        },
       },
     };
   });
@@ -156,6 +201,15 @@ try {
   await nativePage.getByRole('button', { name: 'Download update', exact: true }).click();
   assert.match((await nativePage.evaluate(() => window.testDownload)).url, /\/api\/app\/download$/);
   await nativePage.screenshot({ path: 'test-results/android-no-promotion.png', fullPage: true });
+  await nativePage.getByRole('button', { name: 'Preview Emerald tide' }).click();
+  for (const target of ['home', 'lock', 'both']) {
+    await nativePage.getByLabel('Apply wallpaper to').selectOption(target);
+    await nativePage.getByRole('button', { name: /^Apply to / }).click();
+    await nativePage.waitForFunction((expected) => window.testApply?.target === expected, target);
+    assert.equal((await nativePage.evaluate(() => window.testApply)).effects.dim, 0);
+  }
+  await nativePage.getByRole('button', { name: 'Close preview' }).click();
+  await nativePage.getByRole('dialog').waitFor({ state: 'hidden' });
   await nativePage.close();
   assert.deepEqual(errors, []);
   console.log(

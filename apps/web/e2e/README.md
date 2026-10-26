@@ -23,3 +23,7 @@ rename and delete. Screenshots are written to ignored `test-results/` at desktop
 S24 Ultra and S25 viewport sizes. It also checks for horizontal overflow and JS errors.
 
 The harness also checks that installation links are hidden in an Android shell while a newer-version notice still calls the native download method.
+
+2026-10-26 checks also cover isolated per-wallpaper edits across reloads, Undo and
+Reset position/all, all four preview surfaces, browser Back across previews/tabs,
+and one-off Home/Lock/Both apply calls independently from rotation settings.

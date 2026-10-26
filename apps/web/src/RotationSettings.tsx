@@ -109,7 +109,7 @@ export function RotationSettings({ config, setConfig, state, busy, run, refreshN
       <div className="button-row">
         <button
           className="primary"
-          disabled={busy || !bridge || config.ids.length === 0}
+          disabled={busy || !bridge || !state.supportsStyles || config.ids.length === 0}
           onClick={() =>
             run(async () =>
               refreshNative(await bridge!.configure({ config: { ...config, enabled: true } })),
@@ -131,6 +131,12 @@ export function RotationSettings({ config, setConfig, state, busy, run, refreshN
           Next wallpaper ↗
         </button>
       </div>
+      {bridge && !state.supportsStyles && (
+        <p className="muted">
+          Install the Android update to save per-wallpaper adjustments for rotation. Applying a
+          single wallpaper works now.
+        </p>
+      )}
       <div className="schedule-note">
         <span className="dot" />
         <p>

@@ -1,5 +1,6 @@
 // Imports the explicitly curated photo list into this household's shared library.
 // Run after npm run build and deployment; --download-only prepares previews without touching data.
+// --keys=key1,key2 imports only that selection, without restoring previously deleted photos.
 import { execFileSync } from 'node:child_process';
 import { readFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -18,9 +19,14 @@ async function library() {
   if (!response.ok) throw new Error(`Library returned ${response.status}`);
   return response.json();
 }
+const keysArgument = process.argv.find((argument) => argument.startsWith('--keys='));
+const keys = keysArgument?.slice('--keys='.length).split(',');
+if (keys && keys.some((key) => !photos.some((photo) => photo.key === key)))
+  throw new Error('Unknown photo key');
+const selected = keys ? photos.filter((photo) => keys.includes(photo.key)) : photos;
 const existing = downloadOnly ? [] : await library();
 let imported = 0;
-for (const photo of photos) {
+for (const photo of selected) {
   if (existing.some((row) => row.source?.url === photo.source.url)) {
     console.log(`Already present: ${photo.name}`);
     continue;

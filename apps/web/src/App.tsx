@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { devices, validateRotation, type Rotation, type Wallpaper } from '@luma/core/wallpaper';
+import {
+  devices,
+  migrateRotation,
+  wallpaperStyle,
+  validateRotation,
+  type Target,
+  type Rotation,
+  type Wallpaper,
+} from '@luma/core/wallpaper';
+import { useNavigation } from './useNavigation';
 import { appShell } from './android-shell';
 import type { PublishedApp } from './app-update';
 import { AppUpdateNotice } from './AppUpdateNotice';
@@ -18,15 +27,9 @@ export function App() {
   const [wallpapers, setWallpapers] = useState<Wallpaper[]>([]);
   const [config, setConfig] = useState<Rotation>(loadRotation);
   const [native, setNative] = useState<NativeState>({});
-  const [tab, setTab] = useState<'library' | 'playlist' | 'schedule'>(() => {
-    const saved = localStorage.getItem('luma.tab');
-    return saved === 'playlist' || saved === 'schedule' ? saved : 'library';
-  });
+  const { tab, setTab, selected, setSelected } = useNavigation();
   const [query, setQuery] = useState('');
   const [favorites, setFavorites] = useState(false);
-  const [selected, setSelected] = useState<string | null>(() =>
-    localStorage.getItem('luma.preview'),
-  );
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -39,7 +42,10 @@ export function App() {
   }
   function refreshNative(state: NativeState) {
     setNative(state);
-    if (state.config) setConfig(state.config);
+    if (state.config) {
+      const saved = migrateRotation(state.config);
+      setConfig((current) => ({ ...saved, styles: current.styles ?? saved.styles }));
+    }
   }
   useEffect(() => {
     refresh()
@@ -49,7 +55,7 @@ export function App() {
       ?.getState()
       .then((state) => {
         setNative(state);
-        if (state.config && !hadDraft.current) setConfig(state.config);
+        if (state.config && !hadDraft.current) setConfig(migrateRotation(state.config));
         else if (!hadDraft.current && state.model?.startsWith('SM-S931'))
           setConfig((c) => ({ ...c, device: 's25' }));
       })
@@ -61,13 +67,6 @@ export function App() {
   useEffect(() => {
     localStorage.setItem('luma.rotation', JSON.stringify(config));
   }, [config]);
-  useEffect(() => {
-    localStorage.setItem('luma.tab', tab);
-  }, [tab]);
-  useEffect(() => {
-    if (selected) localStorage.setItem('luma.preview', selected);
-    else localStorage.removeItem('luma.preview');
-  }, [selected]);
   useEffect(() => {
     function refreshState() {
       if (!document.hidden)
@@ -407,18 +406,36 @@ export function App() {
       {detail && (
         <WallpaperDetail
           wallpaper={detail}
-          config={config}
-          setConfig={setConfig}
+          key={detail.id}
+          config={{ ...config, ...wallpaperStyle(config, detail.id) }}
+          setConfig={(next) =>
+            setConfig((current) => ({
+              ...current,
+              styles: {
+                ...current.styles,
+                [detail.id]: {
+                  focalX: next.focalX,
+                  focalY: next.focalY,
+                  effects: next.effects,
+                },
+              },
+            }))
+          }
           close={() => setSelected(null)}
           busy={busy}
           run={(action) => {
             void run(action);
           }}
-          apply={async () => {
-            validateRotation(config);
-            const state = await wallpaperBridge()!.apply({
-              config: { ...config, ids: [detail.id], enabled: false },
-            });
+          apply={async (target: Target) => {
+            const single = {
+              ...config,
+              ...wallpaperStyle(config, detail.id),
+              target,
+              ids: [detail.id],
+              enabled: false,
+            };
+            validateRotation(single);
+            const state = await wallpaperBridge()!.apply({ config: single });
             setNative(state);
           }}
           remove={async () => {

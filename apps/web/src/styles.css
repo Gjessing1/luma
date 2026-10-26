@@ -1110,3 +1110,165 @@ summary {
   color: var(--muted);
   font-size: 10px;
 }
+
+.preview-surfaces {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+  margin-bottom: 18px;
+}
+.preview-surfaces button {
+  font-size: 11px;
+  padding: 8px;
+}
+.preview-surfaces button[aria-pressed='true'] {
+  background: var(--mint);
+  color: #14271c;
+}
+.preview-stage .preview-caption {
+  text-align: center;
+  max-width: 220px;
+  line-height: 1.6;
+}
+.preview-stage .resolution-note {
+  color: #eccb96;
+  text-align: center;
+  max-width: 240px;
+  line-height: 1.6;
+}
+.preview-status {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  color: white;
+  font-size: 8px;
+}
+.preview-widget {
+  position: absolute;
+  top: 17%;
+  left: 10%;
+  right: 10%;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-shadow: 0 1px 4px #000;
+}
+.preview-widget strong {
+  font-size: 23px;
+}
+.preview-widget span {
+  font-size: 8px;
+}
+.preview-music {
+  position: absolute;
+  top: 42%;
+  left: 7%;
+  right: 7%;
+  border-radius: 10px;
+  background: #202a33d9;
+  color: white;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+}
+.preview-music div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 7px;
+}
+.preview-apps {
+  position: absolute;
+  bottom: 2%;
+  left: 6%;
+  right: 6%;
+  height: 30%;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  color: white;
+}
+.preview-app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 6px;
+  text-shadow: 0 1px 3px #000;
+}
+.preview-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  background: #51896c;
+  text-shadow: none;
+}
+.icon-1,
+.icon-5 {
+  background: #ffffff55;
+}
+.icon-2,
+.icon-3 {
+  background: #dd9751;
+}
+.icon-4,
+.icon-7 {
+  background: #68778c;
+}
+.icon-6 {
+  background: #5182b2;
+}
+.preview-folder {
+  font-size: 13px;
+  line-height: 9px;
+}
+.preview-page-dots {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 7px;
+}
+.preview-app-dock {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-around;
+}
+.preview-app-dock span {
+  background: #385f80;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+}
+.adjustment-actions {
+  margin: 14px 0;
+}
+.reset-control {
+  padding: 5px 8px;
+  font-size: 10px;
+  color: var(--mint);
+}
+.apply-wallpaper {
+  margin-top: 16px;
+}
+@media (max-width: 760px) {
+  .phone-preview {
+    width: 210px;
+  }
+  .modal-backdrop {
+    padding-top: max(10px, var(--inset-top));
+    padding-bottom: max(10px, var(--inset-bottom));
+  }
+}

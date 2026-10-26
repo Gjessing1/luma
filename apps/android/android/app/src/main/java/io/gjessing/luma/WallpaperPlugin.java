@@ -62,10 +62,13 @@ public class WallpaperPlugin extends Plugin {
     }
     private void download(String id, JSONObject config, File destination) throws Exception {
         if (!id.matches("[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}")) throw new Exception("Invalid image ID");
-        JSONObject effects = config.getJSONObject("effects");
+        JSONObject styles = config.optJSONObject("styles");
+        JSONObject style = styles == null ? config : styles.optJSONObject(id);
+        if (style == null) style = new JSONObject("{\"focalX\":50,\"focalY\":50,\"effects\":{\"dim\":0,\"blur\":0,\"warmth\":0,\"grayscale\":false}}");
+        JSONObject effects = style.getJSONObject("effects");
         Uri uri = Uri.parse(BuildConfig.SERVER_URL).buildUpon().appendEncodedPath("api/wallpapers/" + id + "/image")
             .appendQueryParameter("device", config.getString("device"))
-            .appendQueryParameter("x", config.getString("focalX")).appendQueryParameter("y", config.getString("focalY"))
+            .appendQueryParameter("x", style.getString("focalX")).appendQueryParameter("y", style.getString("focalY"))
             .appendQueryParameter("dim", effects.getString("dim")).appendQueryParameter("blur", effects.getString("blur"))
             .appendQueryParameter("warmth", effects.getString("warmth")).appendQueryParameter("grayscale", effects.getBoolean("grayscale") ? "1" : "0").build();
         HttpURLConnection connection = (HttpURLConnection) new URL(uri.toString()).openConnection();

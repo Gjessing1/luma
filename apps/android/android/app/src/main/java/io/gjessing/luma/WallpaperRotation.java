@@ -35,11 +35,23 @@ final class WallpaperRotation {
         JSONArray times = config.getJSONArray("dailyTimes");
         if (times.length() < 1 || times.length() > 24) throw new Exception("Choose 1–24 daily times");
         for (int i = 0; i < times.length(); i++) if (!times.getString(i).matches("([01][0-9]|2[0-3]):[0-5][0-9]")) throw new Exception("Use HH:mm daily times");
-        for (String key : new String[]{"focalX", "focalY"}) checkRange(config.getDouble(key));
-        JSONObject effects = config.getJSONObject("effects");
+        validateStyle(config);
+        if (config.has("styles")) {
+            JSONObject styles = config.getJSONObject("styles");
+            java.util.Iterator<String> keys = styles.keys();
+            while (keys.hasNext()) {
+                String id = keys.next();
+                if (!id.matches("[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}")) throw new Exception("Invalid wallpaper ID");
+                validateStyle(styles.getJSONObject(id));
+            }
+        }
+        config.getBoolean("shuffle");
+    }
+    private static void validateStyle(JSONObject style) throws Exception {
+        for (String key : new String[]{"focalX", "focalY"}) checkRange(style.getDouble(key));
+        JSONObject effects = style.getJSONObject("effects");
         for (String key : new String[]{"dim", "blur", "warmth"}) checkRange(effects.getDouble(key));
         effects.getBoolean("grayscale");
-        config.getBoolean("shuffle");
     }
     private static void checkRange(double n) throws Exception { if (Double.isNaN(n) || Double.isInfinite(n) || n < 0 || n > 100) throw new Exception("Invalid crop or effect"); }
     static PendingIntent alarm(Context context) {
@@ -102,6 +114,7 @@ final class WallpaperRotation {
         JSONObject config = config(context);
         if (config != null) state.put("config", config);
         state.put("model", android.os.Build.MODEL);
+        state.put("supportsStyles", true);
         for (String key : new String[]{"nextAt", "lastApplied"}) if (prefs.contains(key)) state.put(key, prefs.getLong(key, 0));
         for (String key : new String[]{"error", "lastId"}) if (prefs.contains(key)) state.put(key, prefs.getString(key, ""));
         return state;

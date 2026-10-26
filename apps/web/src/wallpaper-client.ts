@@ -1,11 +1,14 @@
 import {
   defaultRotation,
+  migrateRotation,
+  wallpaperStyle,
   validateRotation,
   type Rotation,
   type Wallpaper,
 } from '@luma/core/wallpaper';
 
 export interface NativeState {
+  supportsStyles?: boolean;
   config?: Rotation;
   nextAt?: number;
   lastApplied?: number;
@@ -26,14 +29,15 @@ export function wallpaperBridge(): WallpaperBridge | null {
   return window.Capacitor?.Plugins?.Wallpaper ?? null;
 }
 export function imageUrl(id: string, config: Rotation, thumb = false): string {
+  const style = wallpaperStyle(config, id);
   const query = new URLSearchParams({
     device: config.device,
-    x: String(config.focalX),
-    y: String(config.focalY),
-    dim: String(config.effects.dim),
-    blur: String(config.effects.blur),
-    warmth: String(config.effects.warmth),
-    grayscale: config.effects.grayscale ? '1' : '0',
+    x: String(style.focalX),
+    y: String(style.focalY),
+    dim: String(style.effects.dim),
+    blur: String(style.effects.blur),
+    warmth: String(style.effects.warmth),
+    grayscale: style.effects.grayscale ? '1' : '0',
     thumb: thumb ? '1' : '0',
   });
   return `/api/wallpapers/${id}/image?${query}`;
@@ -45,9 +49,9 @@ export function loadRotation(): Rotation {
       ? { ...defaultRotation, ...saved, effects: { ...defaultRotation.effects, ...saved.effects } }
       : structuredClone(defaultRotation);
     validateRotation(config);
-    return config;
+    return migrateRotation(config, localStorage.getItem('luma.preview'));
   } catch {
-    return structuredClone(defaultRotation);
+    return { ...structuredClone(defaultRotation), styles: {} };
   }
 }
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {

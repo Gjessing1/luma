@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { cropRectangle, defaultRotation, devices, validateRotation } from './wallpaper.js';
+import {
+  cropRectangle,
+  defaultRotation,
+  devices,
+  validateRotation,
+  originalStyle,
+  migrateRotation,
+  wallpaperStyle,
+} from './wallpaper.js';
 
 describe('Galaxy framing', () => {
   it('uses matching 19.5:9 crops for both Galaxy profiles', () => {
@@ -47,6 +55,41 @@ describe('playlist validation', () => {
         ids: ['a5bc359c-c9b0-4c2b-9515-2ba59841db75'],
         enabled: true,
       }),
+    ).not.toThrow();
+  });
+});
+
+describe('per-wallpaper adjustments', () => {
+  const first = 'a5bc359c-c9b0-4c2b-9515-2ba59841db75';
+  const second = 'a5bc359c-c9b0-4c2b-9515-2ba59841db76';
+  it('preserves legacy edits for selected images without styling new library choices', () => {
+    const legacy = {
+      ...defaultRotation,
+      ids: [first],
+      focalX: 80,
+      effects: { ...defaultRotation.effects, dim: 35 },
+    };
+    const migrated = migrateRotation(legacy, second);
+    expect(wallpaperStyle(migrated, first)).toMatchObject({ focalX: 80, effects: { dim: 35 } });
+    expect(wallpaperStyle(migrated, second)).toMatchObject({ focalX: 80, effects: { dim: 35 } });
+    expect(wallpaperStyle(migrated, 'a5bc359c-c9b0-4c2b-9515-2ba59841db77')).toEqual(originalStyle);
+    expect(migrateRotation(migrated)).toBe(migrated);
+    migrated.styles![first]!.effects.dim = 10;
+    expect(wallpaperStyle(migrated, second).effects.dim).toBe(35);
+    expect(legacy.effects.dim).toBe(35);
+  });
+  it('rejects malformed per-image styles before saving a native playlist', () => {
+    expect(() =>
+      validateRotation({
+        ...defaultRotation,
+        styles: { [first]: { ...originalStyle, focalY: NaN } },
+      }),
+    ).toThrow();
+    expect(() =>
+      validateRotation({ ...defaultRotation, styles: { invalid: originalStyle } }),
+    ).toThrow();
+    expect(() =>
+      validateRotation({ ...defaultRotation, styles: { [first]: originalStyle } }),
     ).not.toThrow();
   });
 });

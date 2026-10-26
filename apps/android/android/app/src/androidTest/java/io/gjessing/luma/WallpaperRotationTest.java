@@ -1,5 +1,6 @@
 package io.gjessing.luma;
 
+import android.app.WallpaperManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -33,6 +34,15 @@ public class WallpaperRotationTest {
         config.put("intervalMinutes", 1);
         try { WallpaperRotation.validate(config); fail("Must reject short intervals"); } catch (Exception expectedError) { assertTrue(expectedError.getMessage().contains("15 minutes")); }
     }
+    @Test public void validatesIndependentStyles() throws Exception {
+        JSONObject settings = config();
+        JSONObject style = new JSONObject("{\"focalX\":75,\"focalY\":20,\"effects\":{\"dim\":35,\"blur\":0,\"warmth\":0,\"grayscale\":false}}");
+        settings.put("styles", new JSONObject().put(FIRST, style));
+        WallpaperRotation.validate(settings);
+        style.put("focalX", -1);
+        try { WallpaperRotation.validate(settings); fail("Must reject invalid per-wallpaper crop"); }
+        catch (Exception expected) { assertTrue(expected.getMessage().contains("Invalid crop")); }
+    }
     private void image(File file, int color) throws Exception {
         Bitmap bitmap = Bitmap.createBitmap(120, 260, Bitmap.Config.ARGB_8888); bitmap.eraseColor(color);
         try (FileOutputStream output = new FileOutputStream(file)) { bitmap.compress(Bitmap.CompressFormat.JPEG, 85, output); }
@@ -53,6 +63,14 @@ public class WallpaperRotationTest {
             long deadline = System.currentTimeMillis() + 10000;
             while (!SECOND.equals(WallpaperRotation.prefs(context).getString("lastId", "")) && System.currentTimeMillis() < deadline) Thread.sleep(100);
             assertEquals(SECOND, WallpaperRotation.state(context).getString("lastId"));
+            WallpaperManager manager = WallpaperManager.getInstance(context);
+            WallpaperRotation.applyFile(context, new File(directory, FIRST + ".jpg"), "lock", FIRST);
+            int lockId = manager.getWallpaperId(WallpaperManager.FLAG_LOCK);
+            WallpaperRotation.applyFile(context, new File(directory, SECOND + ".jpg"), "home", SECOND);
+            assertEquals("Home-only apply preserves lock wallpaper", lockId, manager.getWallpaperId(WallpaperManager.FLAG_LOCK));
+            int homeId = manager.getWallpaperId(WallpaperManager.FLAG_SYSTEM);
+            WallpaperRotation.applyFile(context, new File(directory, FIRST + ".jpg"), "lock", FIRST);
+            assertEquals("Lock-only apply preserves home wallpaper", homeId, manager.getWallpaperId(WallpaperManager.FLAG_SYSTEM));
             JSONObject paused = config().put("enabled", false);
             WallpaperRotation.prefs(context).edit().putString("config", paused.toString()).commit();
             WallpaperRotation.schedule(context);

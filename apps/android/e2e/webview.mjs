@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright-core';
@@ -5,17 +7,31 @@ import { chromium } from 'playwright-core';
 const browser = await chromium.connectOverCDP(process.env.LUMA_CDP_URL ?? 'http://127.0.0.1:9228', {
   noDefaults: true,
 });
+const origin = process.env.LUMA_ANDROID_TEST_ORIGIN ?? 'http://10.0.2.2:3097';
+const adb = process.env.ADB ?? '/home/gjessing/android-sdk/platform-tools/adb';
 let page;
 async function reconnect() {
-  // Android's dynamic-color overlay can replace the whole WebView after setBitmap.
-  await new Promise((resolve) => setTimeout(resolve, 1800));
-  page = browser
-    .contexts()[0]
-    .pages()
-    .find((candidate) => candidate.url().startsWith('http://10.0.2.2:3048'));
-  assert.ok(page, 'Expected the replacement test WebView');
-  page.setDefaultTimeout(20000);
-  await page.locator('main').waitFor();
+  // Applying a wallpaper can trigger several dynamic-color Activity recreations.
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    const candidate = browser
+      .contexts()[0]
+      .pages()
+      .find((entry) => entry.url().startsWith(origin));
+    if (!candidate) continue;
+    try {
+      await candidate.locator('main').waitFor({ timeout: 2000 });
+      await candidate.waitForTimeout(5000);
+      if (candidate.isClosed()) continue;
+      page = candidate;
+      page.setDefaultTimeout(20000);
+      return;
+    } catch (error) {
+      if (!/closed|destroyed|navigation|Timeout/i.test(error.message)) throw error;
+    }
+  }
+  throw new Error('Expected the replacement test WebView');
 }
 async function action(operation) {
   try {
@@ -37,10 +53,27 @@ try {
     await page.getByRole('button', { name: 'Close preview' }).click();
   await page.getByRole('button', { name: 'Library', exact: true }).click();
   await page.getByRole('button', { name: 'Preview Emerald tide', exact: true }).waitFor();
+  await page.evaluate(() => {
+    const config = JSON.parse(localStorage.getItem('luma.rotation'));
+    config.ids = [];
+    localStorage.setItem('luma.rotation', JSON.stringify(config));
+  });
+  await page.reload();
   for (const name of ['Emerald tide', 'Blue hour']) {
     const add = page.getByRole('button', { name: `Add to playlist: ${name}`, exact: true });
     if (await add.count()) await add.click();
   }
+  await page.getByRole('button', { name: 'Preview Emerald tide', exact: true }).click();
+  await page.getByRole('button', { name: 'AMOLED night', exact: true }).click();
+  await page.getByLabel('Horizontal position').fill('75');
+  execFileSync(adb, ['shell', 'input', 'keyevent', '4']);
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  await page.getByRole('button', { name: 'My playlist', exact: true }).click();
+  await page.getByRole('button', { name: 'Schedule', exact: true }).click();
+  execFileSync(adb, ['shell', 'input', 'keyevent', '4']);
+  await page.getByRole('heading', { name: 'Playlist', exact: true }).waitFor();
+  execFileSync(adb, ['shell', 'input', 'keyevent', '4']);
+  await page.getByRole('heading', { name: 'Library', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Schedule', exact: true }).click();
   await page.getByLabel('Galaxy profile').selectOption('s25');
   await page.getByLabel('Change wallpaper').selectOption('interval');
@@ -52,6 +85,45 @@ try {
   assert.equal(current.config.enabled, true);
   assert.ok(current.nextAt > Date.now());
   assert.equal(await page.getByRole('button', { name: 'Schedule', exact: true }).count(), 1);
+  console.log('Android Back, playlist save and per-image settings passed.');
+  const generation = execFileSync(
+    adb,
+    ['shell', 'run-as', 'io.gjessing.luma', 'ls', 'files/wallpapers'],
+    { encoding: 'utf8' },
+  ).trim();
+  assert.match(generation, /^[0-9a-f-]+$/);
+  for (const id of current.config.ids) {
+    const style = current.config.styles[id] ?? {
+      focalX: 50,
+      focalY: 50,
+      effects: { dim: 0, blur: 0, warmth: 0, grayscale: false },
+    };
+    const query = new URLSearchParams({
+      device: 's25',
+      x: String(style.focalX),
+      y: String(style.focalY),
+      dim: String(style.effects.dim),
+      blur: '0',
+      warmth: '0',
+      grayscale: '0',
+    });
+    const expected = await fetch(
+      `${origin.replace('10.0.2.2', '127.0.0.1')}/api/wallpapers/${id}/image?${query}`,
+    );
+    const cached = execFileSync(
+      adb,
+      ['exec-out', 'run-as', 'io.gjessing.luma', 'cat', `files/wallpapers/${generation}/${id}.jpg`],
+      { maxBuffer: 25 * 1024 * 1024 },
+    );
+    assert.equal(
+      createHash('sha256').update(cached).digest('hex'),
+      createHash('sha256')
+        .update(Buffer.from(await expected.arrayBuffer()))
+        .digest('hex'),
+      'Native cache must match each image’s own adjustments',
+    );
+  }
+  console.log('Native cached JPEGs match each wallpaper’s adjusted render.');
   const initial = current.lastId;
   await action(() => page.evaluate(() => window.Capacitor.Plugins.Wallpaper.next()));
   current = await state();
@@ -86,9 +158,12 @@ try {
   await page.getByRole('button', { name: 'Library', exact: true }).click();
   await page.getByRole('button', { name: 'Preview Emerald tide', exact: true }).click();
   await page.getByRole('button', { name: 'AMOLED night', exact: true }).click();
-  await action(() =>
-    page.getByRole('button', { name: 'Apply to home & lock screen', exact: true }).click(),
-  );
+  for (const target of ['home', 'lock', 'both']) {
+    await page.getByLabel('Apply wallpaper to').selectOption(target);
+    await action(() => page.getByRole('button', { name: /^Apply to / }).click());
+    console.log(`Applied ${target}; checking restored preview.`);
+    await page.getByRole('dialog').waitFor();
+  }
   current = await state();
   assert.equal(current.config.enabled, false);
   assert.ok(current.lastApplied);
