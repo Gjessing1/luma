@@ -26,4 +26,4 @@ networks:
   default:
     ipam:
       config:
-        - subnet: 172.30.48.0/24
+        - subnet: 10.210.9.0/24
