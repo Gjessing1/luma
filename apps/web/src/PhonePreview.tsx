@@ -3,11 +3,20 @@ import { cropRectangle, devices, type Rotation, type Wallpaper } from '@luma/cor
 import { imageUrl } from './wallpaper-client';
 import { S24HomeOverlay } from './S24HomeOverlay';
 
-type Surface = 'home' | 'widgets' | 'lock' | 'wallpaper';
+type Surface = 'home' | 'widgets' | 'work' | 'lock' | 'wallpaper';
 export function PhonePreview({ wallpaper, config }: { wallpaper: Wallpaper; config: Rotation }) {
   const [surface, setSurface] = useState<Surface>('home');
+  const [agendaRows, setAgendaRows] = useState(0);
   const profile = devices[config.device];
-  const samsungHome = config.device === 's24-ultra' && surface === 'home';
+  const samsungPage =
+    config.device === 's24-ultra' &&
+    (surface === 'home' || surface === 'widgets' || surface === 'work');
+  const surfaces: [Surface, string][] = [
+    ['home', 'Home'],
+    ['widgets', 'Widgets'],
+  ];
+  if (config.device === 's24-ultra') surfaces.push(['work', 'Work']);
+  surfaces.push(['lock', 'Lock'], ['wallpaper', 'Image']);
   const crop = cropRectangle(
     wallpaper.width,
     wallpaper.height,
@@ -19,29 +28,35 @@ export function PhonePreview({ wallpaper, config }: { wallpaper: Wallpaper; conf
   let caption = 'Example layout · your launcher may differ';
   if (surface === 'wallpaper') {
     caption = 'Wallpaper only';
-  } else if (samsungHome) {
-    caption = 'Your S24 Ultra layout · measured from your screenshot; icons approximated';
+  } else if (samsungPage) {
+    caption = 'Your S24 Ultra layout · measured from your screenshots; content approximated';
   }
   return (
     <div className="preview-stage">
       <div className="preview-surfaces" role="group" aria-label="Preview screen">
-        {(
-          [
-            ['home', 'Home'],
-            ['widgets', 'Widgets'],
-            ['lock', 'Lock'],
-            ['wallpaper', 'Image'],
-          ] as const
-        ).map(([value, label]) => (
+        {surfaces.map(([value, label]) => (
           <button key={value} aria-pressed={surface === value} onClick={() => setSurface(value)}>
             {label}
           </button>
         ))}
       </div>
+      {samsungPage && surface === 'widgets' && (
+        <label className="preview-agenda-size">
+          Extra agenda rows · {agendaRows}
+          <input
+            type="range"
+            min="0"
+            max="5"
+            value={agendaRows}
+            onChange={(event) => setAgendaRows(Number(event.target.value))}
+          />
+          <span>Approximate growth downward · top and sides stay fixed</span>
+        </label>
+      )}
       <div className={`phone-preview ${config.device}`} aria-label={`${surface} screen preview`}>
         <img src={imageUrl(wallpaper.id, config)} alt={wallpaper.name} />
-        {samsungHome && <S24HomeOverlay />}
-        {surface !== 'wallpaper' && !samsungHome && (
+        {samsungPage && <S24HomeOverlay page={surface} agendaRows={agendaRows} />}
+        {surface !== 'wallpaper' && !samsungPage && (
           <>
             <div className="camera-hole" />
             <div className="preview-status">

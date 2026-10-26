@@ -31,7 +31,14 @@ and one-off Home/Lock/Both apply calls independently from rotation settings.
 S24 Ultra Home uses the owner's measured One UI layout. The browser checks its
 two five-column rows and five-icon dock against screenshot height fractions at
 desktop/mobile widths, verifies that the frame preserves the photo's 1440×3120
-ratio, and checks that Image hides the overlay. S25 and example widgets stay separate.
+ratio, and checks that Image hides the overlay. The two additional screenshots
+calibrate the offset Widgets panel and Work photo widgets; checks compare their
+bounds with measured screenshot fractions at both widths. All pages keep the same
+rendered photo. Extra agenda rows extend Widgets downward, keeping its top, left
+and width fixed. S25 retains its example widgets.
+
+Trap: deleting a photo closes its dialog before the asynchronous library refresh
+finishes. Wait for the deleted card to disappear before checking the card count.
 
 Live wallpaper checks cover all three example cards, offline/automatic weather
 controls, coordinate draft persistence, browser-only disabled activation, and mobile

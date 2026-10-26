@@ -145,6 +145,9 @@ try {
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Delete', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  await page
+    .getByRole('button', { name: 'Preview Test renamed', exact: true })
+    .waitFor({ state: 'hidden' });
   assert.equal(await page.locator('.wallpaper-card').count(), 6);
   for (const [name, width, height] of [
     ['s24-ultra', 384, 832],
@@ -249,6 +252,48 @@ try {
       path: `test-results/s24-home-${viewport.width}.png`,
       fullPage: true,
     });
+    await nativePage.getByRole('button', { name: 'Widgets', exact: true }).click();
+    const widgetPhone = await nativePage.locator('.phone-preview').boundingBox();
+    const widget = await nativePage.locator('.s24-widget-page').boundingBox();
+    assert.ok(Math.abs((widget.x - widgetPhone.x) / phone.width - 0.2444) < 0.002);
+    assert.ok(Math.abs((widget.y - widgetPhone.y) / phone.height - 0.1993) < 0.002);
+    assert.ok(Math.abs(widget.width / phone.width - 0.6952) < 0.002);
+    assert.ok(Math.abs(widget.height / phone.height - 0.4269) < 0.002);
+    assert.equal(await nativePage.locator('.s24-home-app').count(), 0);
+    assert.equal(await nativePage.locator('.s24-dock-icon').count(), 5);
+    await nativePage.screenshot({
+      path: `test-results/s24-widgets-${viewport.width}.png`,
+      fullPage: true,
+    });
+    await nativePage.getByLabel('Extra agenda rows').fill('5');
+    const busyWidget = await nativePage.locator('.s24-widget-page').boundingBox();
+    const busyPhone = await nativePage.locator('.phone-preview').boundingBox();
+    assert.ok(Math.abs((busyWidget.x - busyPhone.x) / phone.width - 0.2444) < 0.002);
+    assert.ok(Math.abs((busyWidget.y - busyPhone.y) / phone.height - 0.1993) < 0.002);
+    assert.ok(Math.abs(busyWidget.width - widget.width) < 0.1);
+    assert.ok(busyWidget.height > widget.height);
+    await nativePage.screenshot({
+      path: `test-results/s24-busy-widgets-${viewport.width}.png`,
+      fullPage: true,
+    });
+    await nativePage.getByLabel('Extra agenda rows').fill('0');
+    await nativePage.getByRole('button', { name: 'Work', exact: true }).click();
+    assert.equal(await nativePage.locator('.s24-work-app').count(), 10);
+    assert.equal(await nativePage.locator('.s24-photo-widget').count(), 2);
+    assert.equal(await nativePage.locator('.s24-widget-page').count(), 0);
+    const photos = await nativePage.locator('.s24-photo-widget').first().boundingBox();
+    assert.ok(Math.abs((photos.y - phone.y) / phone.height - 0.3126) < 0.002);
+    assert.ok(Math.abs(photos.width / phone.width - 0.3249) < 0.002);
+    assert.ok(Math.abs(photos.height / phone.height - 0.2071) < 0.002);
+    assert.equal(
+      await nativePage.locator('.phone-preview > img').getAttribute('src'),
+      await nativePage.getByRole('link', { name: 'Download image' }).getAttribute('href'),
+    );
+    await nativePage.screenshot({
+      path: `test-results/s24-work-${viewport.width}.png`,
+      fullPage: true,
+    });
+    await nativePage.getByRole('button', { name: 'Home', exact: true }).click();
   }
   await nativePage.getByRole('button', { name: 'Image', exact: true }).click();
   assert.equal(await nativePage.locator('.s24-home-overlay').count(), 0);

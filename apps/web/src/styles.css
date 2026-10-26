@@ -1145,6 +1145,19 @@ summary {
   max-width: 240px;
   line-height: 1.6;
 }
+.preview-agenda-size {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 235px;
+  margin-bottom: 16px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.preview-agenda-size span {
+  font-size: 10px;
+  line-height: 1.5;
+}
 .preview-status {
   position: absolute;
   top: 8px;
