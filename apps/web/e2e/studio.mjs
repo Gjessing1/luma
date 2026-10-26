@@ -223,6 +223,36 @@ try {
   assert.match((await nativePage.evaluate(() => window.testDownload)).url, /\/api\/app\/download$/);
   await nativePage.screenshot({ path: 'test-results/android-no-promotion.png', fullPage: true });
   await nativePage.getByRole('button', { name: 'Preview Emerald tide' }).click();
+  for (const viewport of [
+    { width: 384, height: 832 },
+    { width: 1440, height: 1080 },
+  ]) {
+    await nativePage.setViewportSize(viewport);
+    await nativePage.locator('.s24-home-overlay').waitFor();
+    assert.equal(await nativePage.locator('.s24-home-app').count(), 10);
+    assert.equal(await nativePage.locator('.s24-dock-icon').count(), 5);
+    assert.equal(await nativePage.locator('.preview-widget').count(), 0);
+    const phone = await nativePage.locator('.phone-preview').boundingBox();
+    const photo = await nativePage.locator('.phone-preview img').boundingBox();
+    assert.ok(Math.abs(photo.width / photo.height - 1440 / 3120) < 0.0001);
+    assert.ok(Math.abs(photo.height - phone.height) < 0.1, 'Frame must not recrop the image');
+    // Anchors measured from the supplied One UI screenshot, as fractions of its height.
+    for (const [selector, top] of [
+      ['.s24-home-app >> nth=0', 0.5455],
+      ['.s24-home-app >> nth=5', 0.6593],
+      ['.s24-dock-icon >> nth=0', 0.8518],
+    ]) {
+      const box = await nativePage.locator(selector).boundingBox();
+      assert.ok(Math.abs((box.y - phone.y) / phone.height - top) < 0.002);
+    }
+    await nativePage.screenshot({
+      path: `test-results/s24-home-${viewport.width}.png`,
+      fullPage: true,
+    });
+  }
+  await nativePage.getByRole('button', { name: 'Image', exact: true }).click();
+  assert.equal(await nativePage.locator('.s24-home-overlay').count(), 0);
+  await nativePage.getByRole('button', { name: 'Home', exact: true }).click();
   for (const target of ['home', 'lock', 'both']) {
     await nativePage.getByLabel('Apply wallpaper to').selectOption(target);
     await nativePage.getByRole('button', { name: /^Apply to / }).click();

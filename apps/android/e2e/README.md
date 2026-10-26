@@ -66,3 +66,8 @@ Trap (2026-10-26): the AOSP live picker uses `LiveWallpaperPreview`, not
 `WallpaperPreviewActivity`; always handle the destination dialog after Set wallpaper.
 `dumpsys wallpaper` prints the component with its full class name. Engine visibility
 is in `dumpsys activity service io.gjessing.luma/.LumaWallpaperService`.
+
+The direct CHANGE_LIVE_WALLPAPER entry can report `LiveWallpaperChange` as
+`topResumedActivity`, rather than `LiveWallpaperPreview`/`mResumedActivity`.
+Check the livepicker package and action as well as the displayed preview; a single
+hard-coded Activity class name can fail while the actual picker works.

@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { cropRectangle, devices, type Rotation, type Wallpaper } from '@luma/core/wallpaper';
 import { imageUrl } from './wallpaper-client';
+import { S24HomeOverlay } from './S24HomeOverlay';
 
 type Surface = 'home' | 'widgets' | 'lock' | 'wallpaper';
 export function PhonePreview({ wallpaper, config }: { wallpaper: Wallpaper; config: Rotation }) {
   const [surface, setSurface] = useState<Surface>('home');
   const profile = devices[config.device];
+  const samsungHome = config.device === 's24-ultra' && surface === 'home';
   const crop = cropRectangle(
     wallpaper.width,
     wallpaper.height,
@@ -14,6 +16,12 @@ export function PhonePreview({ wallpaper, config }: { wallpaper: Wallpaper; conf
     config.focalY,
   );
   const now = new Date();
+  let caption = 'Example layout · your launcher may differ';
+  if (surface === 'wallpaper') {
+    caption = 'Wallpaper only';
+  } else if (samsungHome) {
+    caption = 'Your S24 Ultra layout · measured from your screenshot; icons approximated';
+  }
   return (
     <div className="preview-stage">
       <div className="preview-surfaces" role="group" aria-label="Preview screen">
@@ -32,7 +40,8 @@ export function PhonePreview({ wallpaper, config }: { wallpaper: Wallpaper; conf
       </div>
       <div className={`phone-preview ${config.device}`} aria-label={`${surface} screen preview`}>
         <img src={imageUrl(wallpaper.id, config)} alt={wallpaper.name} />
-        {surface !== 'wallpaper' && (
+        {samsungHome && <S24HomeOverlay />}
+        {surface !== 'wallpaper' && !samsungHome && (
           <>
             <div className="camera-hole" />
             <div className="preview-status">
@@ -124,9 +133,7 @@ export function PhonePreview({ wallpaper, config }: { wallpaper: Wallpaper; conf
       <p>
         {profile.width} × {profile.height} · {profile.name}
       </p>
-      <p className="preview-caption">
-        {surface === 'wallpaper' ? 'Wallpaper only' : 'Example layout · your launcher may differ'}
-      </p>
+      <p className="preview-caption">{caption}</p>
       <p>
         Source crop: {crop.width} × {crop.height}
       </p>

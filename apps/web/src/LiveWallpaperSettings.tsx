@@ -73,7 +73,10 @@ export function LiveWallpaperSettings({ state, busy, run, refreshNative }: Props
           </button>
         ))}
       </div>
-      <p className="muted">Illustrations above. Android’s preview shows the actual animation.</p>
+      <p className="muted">
+        Illustrations above. Save & open Android preview shows the actual animation on your phone.
+        This preview is for live scenes; Library photos apply directly without opening it.
+      </p>
       {config.scene === 'weather' && (
         <>
           <div className="settings-grid">

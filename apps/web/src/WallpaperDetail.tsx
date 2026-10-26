@@ -278,6 +278,11 @@ export function WallpaperDetail({
           >
             Apply to {target === 'both' ? 'home & lock screen' : `${target} screen`}
           </button>
+          <p className="muted small">
+            Apply sets this photo immediately, without Android’s preview. For animated scenes, close
+            this photo and open Live wallpaper → Save & open Android preview. For Samsung’s photo
+            preview and effects, export to Gallery and open the One UI picker below.
+          </p>
           <details>
             <summary>Samsung Photo ambient & One UI effects</summary>
             <p className="muted small">

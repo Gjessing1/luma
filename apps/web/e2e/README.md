@@ -28,6 +28,11 @@ The harness also checks that installation links are hidden in an Android shell w
 Reset position/all, all four preview surfaces, browser Back across previews/tabs,
 and one-off Home/Lock/Both apply calls independently from rotation settings.
 
+S24 Ultra Home uses the owner's measured One UI layout. The browser checks its
+two five-column rows and five-icon dock against screenshot height fractions at
+desktop/mobile widths, verifies that the frame preserves the photo's 1440×3120
+ratio, and checks that Image hides the overlay. S25 and example widgets stay separate.
+
 Live wallpaper checks cover all three example cards, offline/automatic weather
 controls, coordinate draft persistence, browser-only disabled activation, and mobile
 overflow. The actual animation and Android picker run in the Android harness.
