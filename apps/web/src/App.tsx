@@ -13,7 +13,8 @@ import { appShell } from './android-shell';
 import type { PublishedApp } from './app-update';
 import { AppUpdateNotice } from './AppUpdateNotice';
 import { LiveWallpaperSettings } from './LiveWallpaperSettings';
-import { LiveVideoCollection, useLiveVideos } from './LiveVideoCollection';
+import { useLiveVideos } from './LiveVideoCollection';
+import { LiveLibrary } from './LiveLibrary';
 import { defaultLiveWallpaper } from '@luma/core/live-wallpaper';
 import { RotationSettings } from './RotationSettings';
 import { WallpaperDetail } from './WallpaperDetail';
@@ -32,7 +33,7 @@ export function App() {
   const [native, setNative] = useState<NativeState>({});
   const { tab, setTab, selected, setSelected } = useNavigation();
   const [query, setQuery] = useState('');
-  const [favorites, setFavorites] = useState(false);
+  const [chosenFilter, setFilter] = useState<'all' | 'favorites' | 'live'>('all');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -124,6 +125,9 @@ export function App() {
       }
     });
   }
+  // Live videos can't join the photo playlist, so the playlist never shows the Live chip.
+  const filter = tab === 'playlist' && chosenFilter === 'live' ? 'all' : chosenFilter;
+  const favorites = filter === 'favorites';
   const visible = wallpapers.filter(
     (w) =>
       (!favorites || w.favorite) &&
@@ -264,35 +268,31 @@ export function App() {
           />
         ) : (
           <>
-            {tab === 'library' && !query && !favorites && (
-              <LiveVideoCollection
-                videos={liveVideos.videos}
-                error={liveVideos.error}
-                onBrowse={() => setTab('live')}
-                onSelect={(video) => {
-                  localStorage.setItem(
-                    'luma.live',
-                    JSON.stringify({ ...defaultLiveWallpaper, scene: 'video', videoId: video.id }),
-                  );
-                  setTab('live');
-                }}
-              />
-            )}
             <div className="library-toolbar">
-              <div className="filter-tabs">
+              <div className="filter-tabs" role="group" aria-label="Wallpaper type">
                 <button
-                  className={!favorites ? 'filter-active' : ''}
-                  onClick={() => setFavorites(false)}
+                  className={filter === 'all' ? 'filter-active' : ''}
+                  aria-pressed={filter === 'all'}
+                  onClick={() => setFilter('all')}
                 >
-                  All wallpapers{' '}
-                  <small>{tab === 'playlist' ? config.ids.length : wallpapers.length}</small>
+                  Images <small>{tab === 'playlist' ? config.ids.length : wallpapers.length}</small>
                 </button>
                 <button
                   className={favorites ? 'filter-active' : ''}
-                  onClick={() => setFavorites(true)}
+                  aria-pressed={favorites}
+                  onClick={() => setFilter('favorites')}
                 >
                   ♡ Favorites
                 </button>
+                {tab === 'library' && (
+                  <button
+                    className={filter === 'live' ? 'filter-active' : ''}
+                    aria-pressed={filter === 'live'}
+                    onClick={() => setFilter('live')}
+                  >
+                    ✧ Live <small>{liveVideos.videos.length}</small>
+                  </button>
+                )}
               </div>
               <input
                 type="search"
@@ -325,7 +325,21 @@ export function App() {
                 </button>
               </div>
             )}
-            {loading ? (
+            {filter === 'live' ? (
+              <LiveLibrary
+                videos={liveVideos.videos}
+                loaded={liveVideos.loaded}
+                error={liveVideos.error}
+                query={query}
+                onSelect={(video) => {
+                  localStorage.setItem(
+                    'luma.live',
+                    JSON.stringify({ ...defaultLiveWallpaper, scene: 'video', videoId: video.id }),
+                  );
+                  setTab('live');
+                }}
+              />
+            ) : loading ? (
               <div className="empty-state">Loading wallpapers…</div>
             ) : visible.length === 0 ? (
               <div className="empty-state">
@@ -430,9 +444,11 @@ export function App() {
                 ))}
               </div>
             )}
-            <div className="collection-footer">
-              <span>{visible.length} wallpapers</span>
-            </div>
+            {filter !== 'live' && (
+              <div className="collection-footer">
+                <span>{visible.length} wallpapers</span>
+              </div>
+            )}
           </>
         )}
         <footer>

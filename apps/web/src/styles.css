@@ -366,13 +366,16 @@ input[type='search'] {
   background: #212c26;
   display: block;
 }
-.wallpaper-image img {
+.wallpaper-image img,
+.wallpaper-image video {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
   transition: transform 0.3s;
 }
-.wallpaper-image:hover img {
+.wallpaper-image:hover img,
+.wallpaper-image:hover video {
   transform: scale(1.035);
 }
 .image-type {
