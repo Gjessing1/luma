@@ -34,6 +34,34 @@ public class WallpaperRotationTest {
         config.put("intervalMinutes", 1);
         try { WallpaperRotation.validate(config); fail("Must reject short intervals"); } catch (Exception expectedError) { assertTrue(expectedError.getMessage().contains("15 minutes")); }
     }
+    @Test public void picksTheTimeOfDayImageEvenWhenLate() throws Exception {
+        JSONObject config = config().put("mode", "timed").put("startTimes", new org.json.JSONArray().put("07:00").put("18:30"));
+        WallpaperRotation.validate(config);
+        Calendar now = Calendar.getInstance();
+        now.set(2026, Calendar.OCTOBER, 27, 6, 59, 0); now.set(Calendar.MILLISECOND, 0);
+        assertEquals("Before the first start, yesterday's last image still shows", 1, WallpaperRotation.timedIndex(config, now.getTimeInMillis()));
+        now.set(Calendar.HOUR_OF_DAY, 7); now.set(Calendar.MINUTE, 0);
+        assertEquals(0, WallpaperRotation.firstIndex(config, now.getTimeInMillis()));
+        Calendar expected = (Calendar) now.clone(); expected.set(Calendar.HOUR_OF_DAY, 18); expected.set(Calendar.MINUTE, 30);
+        assertEquals(expected.getTimeInMillis(), WallpaperRotation.nextTime(config, now.getTimeInMillis()));
+        now.set(Calendar.HOUR_OF_DAY, 23);
+        assertEquals(1, WallpaperRotation.timedIndex(config, now.getTimeInMillis()));
+        for (String[] starts : new String[][]{{"07:00"}, {"18:30", "07:00"}, {"07:00", "07:00"}}) {
+            org.json.JSONArray array = new org.json.JSONArray();
+            for (String start : starts) array.put(start);
+            try { WallpaperRotation.validate(config.put("startTimes", array)); fail("Must reject misaligned or unordered start times"); }
+            catch (Exception expectedError) { assertTrue(expectedError.getMessage().contains("start time")); }
+        }
+        withPrefs((context, directory) -> {
+            JSONObject running = config().put("mode", "timed").put("startTimes", new org.json.JSONArray().put("00:00").put("23:59"));
+            int current = WallpaperRotation.timedIndex(running, System.currentTimeMillis());
+            synchronized (WallpaperRotation.LOCK) { WallpaperRotation.install(context, running, "instrumentation", 1 - current); }
+            // Boot and clock changes catch up to the image for the current time. Apps may not send
+            // those protected broadcasts, but any non-ROTATE intent takes the same receiver branch.
+            context.sendBroadcast(new Intent(context, WallpaperAlarmReceiver.class));
+            awaitLastId(context, "home", current == 0 ? FIRST : SECOND);
+        });
+    }
     @Test public void validatesIndependentStyles() throws Exception {
         JSONObject settings = config();
         JSONObject style = new JSONObject("{\"focalX\":75,\"focalY\":20,\"effects\":{\"dim\":35,\"blur\":0,\"warmth\":0,\"grayscale\":false}}");
@@ -116,8 +144,8 @@ public class WallpaperRotationTest {
             JSONObject lock = config().put("target", "lock").put("playlistId", "seasons").put("name", "Seasons").put("mode", "daily");
             WallpaperRotation.validate(home);
             synchronized (WallpaperRotation.LOCK) {
-                WallpaperRotation.install(context, home, "instrumentation", FIRST);
-                WallpaperRotation.install(context, lock, "instrumentation", FIRST);
+                WallpaperRotation.install(context, home, "instrumentation", 0);
+                WallpaperRotation.install(context, lock, "instrumentation", 0);
             }
             JSONObject rotations = WallpaperRotation.state(context).getJSONObject("rotations");
             assertEquals("desert", rotations.getJSONObject("home").getJSONObject("config").getString("playlistId"));
@@ -133,10 +161,10 @@ public class WallpaperRotationTest {
             synchronized (WallpaperRotation.LOCK) { WallpaperRotation.pause(context, "lock"); }
             assertTrue(WallpaperRotation.config(context, "home").getBoolean("enabled"));
             // A Home & lock playlist takes both screens; a lock playlist then stops it entirely.
-            synchronized (WallpaperRotation.LOCK) { WallpaperRotation.install(context, config().put("playlistId", "both"), "instrumentation", FIRST); }
+            synchronized (WallpaperRotation.LOCK) { WallpaperRotation.install(context, config().put("playlistId", "both"), "instrumentation", 0); }
             assertNull(WallpaperRotation.config(context, "lock"));
             assertEquals("both", WallpaperRotation.config(context, "home").getString("playlistId"));
-            synchronized (WallpaperRotation.LOCK) { WallpaperRotation.install(context, lock, "instrumentation", FIRST); }
+            synchronized (WallpaperRotation.LOCK) { WallpaperRotation.install(context, lock, "instrumentation", 0); }
             assertNull(WallpaperRotation.config(context, "home"));
             assertEquals(java.util.Collections.singleton("instrumentation"), WallpaperRotation.generations(context));
         });

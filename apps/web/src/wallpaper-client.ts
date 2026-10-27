@@ -22,6 +22,8 @@ export interface NativeState {
   supportsLiveWallpaper?: boolean;
   supportsLiveVideo?: boolean;
   supportsZoom?: boolean;
+  // APK 0.1.5 runs time of day playlists.
+  supportsTimedSchedule?: boolean;
   live?: {
     config: LiveWallpaperConfig;
     active: boolean;

@@ -22,7 +22,10 @@ public class WallpaperAlarmReceiver extends BroadcastReceiver {
                         org.json.JSONObject config = WallpaperRotation.config(context, slot);
                         WallpaperRotation.schedule(context, slot);
                         if (config != null && config.optBoolean("enabled")) WallpaperRotation.advance(context, slot);
-                    } else WallpaperRotation.scheduleAll(context);
+                    } else {
+                        WallpaperRotation.scheduleAll(context);
+                        WallpaperRotation.catchUp(context);
+                    }
                 } catch (Exception error) {
                     WallpaperRotation.prefs(context).edit().putString(WallpaperRotation.key("error", slot == null ? "home" : slot), error.getMessage()).apply();
                     Log.e("Luma", "Wallpaper rotation failed", error);

@@ -135,12 +135,15 @@ function ScreenRow({
               Pause
             </button>
           )}
-          <button
-            disabled={busy}
-            onClick={() => run(async () => refreshNative(await bridge!.next({ slot })))}
-          >
-            Next wallpaper
-          </button>
+          {/* A time of day playlist always shows the wallpaper for the current time. */}
+          {rotation.config.mode !== 'timed' && (
+            <button
+              disabled={busy}
+              onClick={() => run(async () => refreshNative(await bridge!.next({ slot })))}
+            >
+              Next wallpaper
+            </button>
+          )}
         </div>
       )}
     </div>

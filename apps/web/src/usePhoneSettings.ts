@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   adoptRunning,
   settingsFromRotation,
+  upgradeSettings,
   validatePhoneSettings,
   type PhoneSettings,
 } from '@luma/core/playlist';
@@ -16,8 +17,9 @@ const storageKey = 'luma.phone';
 
 function loadSettings(): PhoneSettings {
   try {
-    const saved = JSON.parse(localStorage.getItem(storageKey) ?? 'null') as PhoneSettings | null;
-    if (saved) {
+    const stored = JSON.parse(localStorage.getItem(storageKey) ?? 'null') as PhoneSettings | null;
+    if (stored) {
+      const saved = upgradeSettings(stored);
       validatePhoneSettings(saved);
       return saved;
     }

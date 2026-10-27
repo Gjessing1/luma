@@ -62,13 +62,33 @@ async function selectPlaylist(name) {
     .getByRole('button', { name: new RegExp(`^${name}`) })
     .click();
 }
-async function addFromLibrary(playlist, names) {
+// From a library card: the + opens a sheet listing every playlist.
+async function addFromCard(playlist, name) {
   await page.getByRole('button', { name: 'Library', exact: true }).click();
-  await page.getByLabel('Add to playlist').selectOption({ label: playlist });
-  for (const name of names) {
-    const add = page.getByRole('button', { name: `Add to ${playlist}: ${name}`, exact: true });
-    if (await add.count()) await add.click();
-  }
+  // The Library may reopen on the Live filter from an earlier run.
+  await page
+    .getByRole('group', { name: 'Wallpaper type' })
+    .getByRole('button', { name: /^Images/ })
+    .click();
+  await page.getByRole('button', { name: `Add ${name} to a playlist`, exact: true }).click();
+  const option = page.getByRole('checkbox', { name: new RegExp(`^${playlist}`) });
+  if ((await option.getAttribute('aria-checked')) !== 'true') await option.click();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+}
+// From the selected playlist: pick several wallpapers in the library sheet.
+async function addInPlaylist(names) {
+  const add = page.getByRole('button', { name: /^\+ Add/ }).first();
+  await add.click();
+  for (const name of names) await page.getByRole('button', { name, exact: true }).click();
+  await page.getByRole('button', { name: `Add ${names.length} wallpapers` }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+}
+async function choose(group, option) {
+  await page
+    .getByRole('radiogroup', { name: group })
+    .getByRole('radio', { name: option, exact: true })
+    .click();
 }
 try {
   await reconnect();
@@ -87,7 +107,8 @@ try {
   await page.locator('main').waitFor();
   if (await page.getByRole('dialog').count())
     await page.getByRole('button', { name: 'Close preview' }).click();
-  await addFromLibrary('My playlist', ['Emerald tide', 'Blue hour']);
+  await addFromCard('My playlist', 'Emerald tide');
+  await addFromCard('My playlist', 'Blue hour');
   await page.getByRole('button', { name: 'Preview Emerald tide', exact: true }).click();
   for (const [panel, action] of [
     ['◐ Style', () => page.getByRole('button', { name: 'AMOLED night', exact: true }).click()],
@@ -106,9 +127,9 @@ try {
   await page.getByRole('heading', { name: 'Library', exact: true }).waitFor();
   await openPlaylists();
   await page.getByLabel('Galaxy profile').selectOption('s25');
-  await page.getByLabel('Show on').selectOption('home');
-  await page.getByLabel('Change wallpaper').selectOption('interval');
-  await page.getByLabel('Every').selectOption('15');
+  await choose('Show on', 'Home');
+  await choose('Change wallpaper', 'Every…');
+  await choose('Interval', '15 min');
   await action(() => page.getByRole('button', { name: 'Start on home screen' }).click());
   current = await state();
   let home = current.rotations.home;
@@ -160,16 +181,30 @@ try {
   await page.getByRole('button', { name: '+ New playlist' }).click();
   await page.getByLabel('Playlist name').fill('Night lock');
   await page.getByLabel('Playlist name').blur();
-  await page.getByLabel('Show on').selectOption('lock');
-  await page.getByLabel('Change wallpaper').selectOption('daily');
-  await addFromLibrary('Night lock', ['Moon garden', 'Lavender drift']);
-  await openPlaylists();
+  await choose('Show on', 'Lock');
+  // Android Back closes the library sheet and stays on the playlist.
+  await page.getByRole('button', { name: '+ Add from library' }).click();
+  await page.getByRole('dialog').waitFor();
+  execFileSync(adb, ['shell', 'input', 'keyevent', '4']);
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
   await page.getByRole('heading', { name: 'Night lock', exact: true }).waitFor();
+  await addInPlaylist(['Moon garden', 'Lavender drift']);
+  // Time of day: each wallpaper has its own start; the first shown is the one for now.
+  await choose('Change wallpaper', 'Time of day');
+  await page.getByLabel('Moon garden starts at').fill('00:00');
+  await page.getByLabel('Lavender drift starts at').fill('12:00');
   assert.equal(await page.locator('.replace-note').count(), 0);
   await action(() => page.getByRole('button', { name: 'Start on lock screen' }).click());
   current = await state();
   assert.equal(current.rotations.lock.config.name, 'Night lock');
-  assert.equal(current.rotations.lock.config.mode, 'daily');
+  const lock = current.rotations.lock.config;
+  assert.equal(lock.mode, 'timed');
+  assert.deepEqual(lock.startTimes, ['00:00', '12:00']);
+  const phoneHour = Number(
+    execFileSync(adb, ['shell', 'date', '+%H'], { encoding: 'utf8' }).trim(),
+  );
+  assert.equal(current.rotations.lock.lastId, lock.ids[phoneHour < 12 ? 0 : 1]);
+  assert.equal(current.supportsTimedSchedule, true);
   assert.equal(current.rotations.home.config.name, 'My playlist');
   assert.equal(current.rotations.home.config.enabled, true);
   assert.equal((await generations()).length, 2, 'Each screen keeps its own cache');
@@ -234,14 +269,31 @@ try {
   assert.ok(current.lastApplied);
   await page.getByRole('dialog').waitFor();
   await page.screenshot({ path: 'test-results/android-preview.png' });
-  await page.getByRole('button', { name: 'Close preview' }).click();
+  // The One UI picker opens Android's wallpaper chooser; Back returns to Luma.
+  await page.getByText('Samsung Photo ambient & One UI effects').click();
+  await page.getByRole('button', { name: 'Open One UI picker' }).click();
+  let resumed = '';
+  for (let tries = 0; tries < 20; tries++) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    resumed =
+      execFileSync(adb, ['shell', 'dumpsys', 'activity', 'activities'], { encoding: 'utf8' })
+        .split('\n')
+        .find((line) => line.includes('topResumedActivity=')) ?? '';
+    if (resumed && !resumed.includes('io.gjessing.luma/')) break;
+  }
+  assert.ok(resumed && !resumed.includes('io.gjessing.luma/'), `Picker did not open: ${resumed}`);
+  console.log('One UI picker opened:', resumed.trim());
+  execFileSync(adb, ['shell', 'input', 'keyevent', '4']);
+  await reconnect();
+  if (await page.getByRole('dialog').count())
+    await page.getByRole('button', { name: 'Close preview' }).click();
 
   // Making the home playlist Home & lock stops the lock playlist.
   await page.reload();
   await openPlaylists();
   assert.equal(await page.getByLabel('Galaxy profile').inputValue(), 's25');
   await selectPlaylist('My playlist');
-  await page.getByLabel('Show on').selectOption('both');
+  await choose('Show on', 'Home & lock');
   await page.getByText('Changed since it started').waitFor();
   assert.match(await page.locator('.replace-note').innerText(), /stops “Night lock”/);
   await action(() => page.getByRole('button', { name: 'Save & resume' }).click());
@@ -256,7 +308,7 @@ try {
   );
   await page.evaluate(() => window.Capacitor.Plugins.Wallpaper.pause({ slot: 'home' }));
   console.log(
-    'Android WebView passed: 0.1.3 migration, home and lock playlists side by side, per-slot next/pause, failed-sync rollback, Gallery export, one-off applies, Home & lock replacement and state restored after Activity recreation.',
+    'Android WebView passed: 0.1.3 migration, playlist sheets, home and lock playlists side by side, time of day, per-slot next/pause, failed-sync rollback, Gallery export, one-off applies, Home & lock replacement and state restored after Activity recreation.',
   );
 } finally {
   await browser.close();

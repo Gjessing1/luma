@@ -11,14 +11,20 @@ import {
   type PhoneSettings,
   type Playlist,
 } from '@luma/core/playlist';
-import type { Rotation, Target } from '@luma/core/wallpaper';
-import { destinationLabel, intervals, screensLabel } from './playlist-text';
+import type { Rotation } from '@luma/core/wallpaper';
+import type { ReactNode } from 'react';
+import { destinationLabel, screensLabel } from './playlist-text';
+import { ScheduleEditor } from './ScheduleEditor';
 import { runningRotations, wallpaperBridge, type NativeState } from './wallpaper-client';
 
 interface Props {
   playlist: Playlist;
   settings: PhoneSettings;
-  change: (patch: Partial<Playlist>) => void;
+  save: (next: Playlist) => string | null;
+  thumbnail: (id: string) => string;
+  name: (id: string) => string;
+  // The playlist's wallpapers, shown between the name and the schedule.
+  children: ReactNode;
   remove: () => void;
   native: NativeState;
   busy: boolean;
@@ -26,7 +32,7 @@ interface Props {
   refreshNative: (state: NativeState) => void;
 }
 export function PlaylistSettings(props: Props) {
-  const { playlist, settings, change, remove, native, busy, run, refreshNative } = props;
+  const { playlist, settings, save, remove, native, busy, run, refreshNative, children } = props;
   const bridge = wallpaperBridge();
   const running = runningRotations(native);
   const screens = screensShowing(playlist.id, running);
@@ -38,6 +44,7 @@ export function PlaylistSettings(props: Props) {
     replaced = [running.home, running.lock].filter(
       (r): r is Rotation => r !== undefined && runningPlaylistId(r) !== playlist.id,
     );
+  const needsUpdate = playlist.mode === 'timed' && !!bridge && !native.supportsTimedSchedule;
   let startLabel = `Start on ${destinationLabel(playlist.target).toLowerCase()}`;
   if (own) startLabel = own.enabled ? 'Save & restart' : 'Save & resume';
   function nameOf(rotation: Rotation): string {
@@ -79,77 +86,27 @@ export function PlaylistSettings(props: Props) {
           Changed since it started. The phone keeps the earlier version until you save.
         </p>
       )}
-      <div className="settings-grid">
-        <label>
-          Name
-          <input
-            aria-label="Playlist name"
-            defaultValue={playlist.name}
-            key={playlist.id}
-            maxLength={60}
-            onBlur={(e) => {
-              const name = e.target.value.trim();
-              if (!name) e.target.value = playlist.name;
-              else if (name !== playlist.name) change({ name });
-            }}
-          />
-        </label>
-        <label>
-          Show on
-          <select
-            value={playlist.target}
-            onChange={(e) => change({ target: e.target.value as Target })}
-          >
-            <option value="both">Home & lock screen (same image)</option>
-            <option value="home">Home screen only</option>
-            <option value="lock">Lock screen only</option>
-          </select>
-        </label>
-        <label>
-          Change wallpaper
-          <select
-            value={playlist.mode}
-            onChange={(e) => change({ mode: e.target.value as Playlist['mode'] })}
-          >
-            <option value="interval">At an interval</option>
-            <option value="daily">At daily times</option>
-          </select>
-        </label>
-        {playlist.mode === 'interval' ? (
-          <label>
-            Every
-            <select
-              value={playlist.intervalMinutes}
-              onChange={(e) => change({ intervalMinutes: Number(e.target.value) })}
-            >
-              {intervals.map(([n, label]) => (
-                <option key={n} value={n}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <label>
-            Daily times (local time)
-            <input
-              aria-label="Daily times"
-              defaultValue={playlist.dailyTimes.join(', ')}
-              key={`${playlist.id}-${playlist.mode}`}
-              onBlur={(e) => change({ dailyTimes: e.target.value.split(',').map((t) => t.trim()) })}
-              placeholder="07:00, 21:00"
-            />
-          </label>
-        )}
-      </div>
-      <label className="check-row">
+      <label className="name-field">
+        Name
         <input
-          type="checkbox"
-          checked={playlist.shuffle}
-          onChange={(e) => change({ shuffle: e.target.checked })}
+          aria-label="Playlist name"
+          defaultValue={playlist.name}
+          key={playlist.id}
+          maxLength={60}
+          onBlur={(e) => {
+            const name = e.target.value.trim();
+            if (!name) e.target.value = playlist.name;
+            else if (name !== playlist.name) save({ ...playlist, name });
+          }}
         />
-        Shuffle without immediate repeats
       </label>
+      {children}
+      <ScheduleEditor
+        playlist={playlist}
+        save={save}
+        thumbnail={props.thumbnail}
+        name={props.name}
+      />
       {bridge && replaced.length > 0 && (
         <p className="muted replace-note">
           Starting stops {replaced.map((r) => `“${nameOf(r)}”`).join(' and ')} on this phone.
@@ -158,7 +115,9 @@ export function PlaylistSettings(props: Props) {
       <div className="button-row">
         <button
           className="primary"
-          disabled={busy || !bridge || !native.supportsStyles || playlist.ids.length === 0}
+          disabled={
+            busy || !bridge || !native.supportsStyles || playlist.ids.length === 0 || needsUpdate
+          }
           onClick={start}
         >
           {startLabel}
@@ -171,6 +130,15 @@ export function PlaylistSettings(props: Props) {
           Delete playlist
         </button>
       </div>
+      {bridge && playlist.ids.length === 0 && (
+        <p className="muted">Add wallpapers to start this playlist.</p>
+      )}
+      {needsUpdate && (
+        <p className="muted">
+          Install the Android update (0.1.5 or newer) to run a time of day playlist. The other
+          schedules work now.
+        </p>
+      )}
       {bridge && !native.supportsStyles && (
         <p className="muted">
           Install the Android update to save per-wallpaper adjustments for rotation. Applying a

@@ -96,3 +96,10 @@ disposable backend, so copy `live-wallpapers/` into its data dir (read-only sour
 
 The harnesses need `playwright-core` and `sharp`; install them in a scratch directory and
 run copies of the scripts from there.
+
+Trap (2026-10-27): instrumentation cannot send `TIME_SET`/`BOOT_COMPLETED`, even to its own
+receiver (SecurityException: protected broadcast). Send the receiver an explicit intent with
+no action instead; any non-ROTATE intent runs the same reschedule-and-catch-up branch.
+
+Trap (2026-10-27): the Library remembers its filter, so a run after a live-wallpaper run opens
+on Live and image cards are missing. `addFromCard` selects Images first.

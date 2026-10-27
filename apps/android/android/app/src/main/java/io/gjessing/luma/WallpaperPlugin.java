@@ -109,8 +109,9 @@ public class WallpaperPlugin extends Plugin {
             for (int i = 0; i < ids.length(); i++) download(ids.getString(i), config, new File(generation, ids.getString(i) + ".jpg"));
             // Keep the old playlist intact until every new image is safely on disk.
             synchronized (WallpaperRotation.LOCK) {
-            WallpaperRotation.applyFile(getContext(), new File(generation, ids.getString(0) + ".jpg"), config.getString("target"), ids.getString(0));
-            WallpaperRotation.install(getContext(), config, generation.getName(), ids.getString(0));
+            int first = WallpaperRotation.firstIndex(config, System.currentTimeMillis());
+            WallpaperRotation.applyFile(getContext(), new File(generation, ids.getString(first) + ".jpg"), config.getString("target"), ids.getString(first));
+            WallpaperRotation.install(getContext(), config, generation.getName(), first);
             committed = true;
             }
         } catch (Exception error) { if (!committed) deleteTree(generation); throw error; }
@@ -148,10 +149,13 @@ public class WallpaperPlugin extends Plugin {
         } catch (Exception error) { if (uri != null) getContext().getContentResolver().delete(uri, null, null); throw error; }
         finally { temporary.delete(); }
     }); }
+    /** Plugin methods run on Capacitor's thread, and trustedPage reads the WebView, which must happen on the UI thread. */
     @PluginMethod public void openWallpaperSettings(PluginCall call) {
-        if (!trustedPage()) { call.reject("Open Luma to use wallpaper controls"); return; }
-        try { getActivity().startActivity(new Intent(Intent.ACTION_SET_WALLPAPER)); call.resolve(); }
-        catch (Exception error) { try { getActivity().startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS)); call.resolve(); } catch (Exception fallback) { call.reject("Open Settings → Wallpaper and style on your Galaxy"); } }
+        getActivity().runOnUiThread(() -> {
+            if (!trustedPage()) { call.reject("Open Luma to use wallpaper controls"); return; }
+            try { getActivity().startActivity(new Intent(Intent.ACTION_SET_WALLPAPER)); call.resolve(); }
+            catch (Exception error) { try { getActivity().startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS)); call.resolve(); } catch (Exception fallback) { call.reject("Open Settings → Wallpaper and style on your Galaxy"); } }
+        });
     }
     @PluginMethod public void configureLive(PluginCall call) { execute(call, () -> {
         JSONObject config = call.getObject("config");

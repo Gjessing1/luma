@@ -15,6 +15,8 @@ import {
   validatePlaylist,
   type Playlist,
 } from '@luma/core/playlist';
+import { addToPlaylist, removeFromPlaylist } from '@luma/core/playlist-edit';
+import { AddToPlaylistSheet } from './AddToPlaylistSheet';
 import { useNavigation } from './useNavigation';
 import { appShell } from './android-shell';
 import type { PublishedApp } from './app-update';
@@ -23,12 +25,10 @@ import { useLiveVideos } from './useLiveVideos';
 import { LiveLibrary, liveKey } from './LiveLibrary';
 import { LiveDetail, type LiveItem } from './LiveDetail';
 import { liveScenes } from '@luma/core/live-wallpaper';
-import { PhoneStatus } from './PhoneStatus';
-import { PlaylistPicker } from './PlaylistPicker';
-import { PlaylistSettings } from './PlaylistSettings';
+import { PlaylistPage } from './PlaylistPage';
 import { usePhoneSettings } from './usePhoneSettings';
 import { WallpaperDetail } from './WallpaperDetail';
-import { api, imageUrl, runningRotations, upload, wallpaperBridge } from './wallpaper-client';
+import { api, imageUrl, upload, wallpaperBridge } from './wallpaper-client';
 
 export function App() {
   const [wallpapers, setWallpapers] = useState<Wallpaper[]>([]);
@@ -43,6 +43,9 @@ export function App() {
   const [notice, setNotice] = useState('');
   const [release, setRelease] = useState<PublishedApp | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  // The playlist that photos being uploaded join, when the upload started from a playlist.
+  const uploadInto = useRef<string | null>(null);
+  const [adding, setAdding] = useState<string | null>(null);
   const liveVideos = useLiveVideos();
   const { settings, setSettings, native, setNative, refreshNative } = usePhoneSettings((e) =>
     setError(String(e)),
@@ -77,28 +80,30 @@ export function App() {
       setBusy(false);
     }
   }
-  function changePlaylist(patch: Partial<Playlist>) {
-    const next = { ...playlist, ...patch };
+  // Returns the reason a change was refused, which is also shown at the top of the page.
+  function savePlaylist(next: Playlist): string | null {
     try {
       validatePlaylist(next);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      return;
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message);
+      return message;
     }
     setError('');
     setSettings((current) => ({
       ...current,
       playlists: current.playlists.map((p) => (p.id === next.id ? next : p)),
     }));
+    return null;
   }
   function selectPlaylist(id: string) {
     setSettings((current) => ({ ...current, current: id }));
   }
-  function createPlaylist() {
+  function createPlaylist(ids: string[] = []) {
     const names = new Set(settings.playlists.map((p) => p.name));
     let number = settings.playlists.length + 1;
     while (names.has(`Playlist ${number}`)) number++;
-    const created = newPlaylist(newPlaylistId(), `Playlist ${number}`);
+    const created = { ...newPlaylist(newPlaylistId(), `Playlist ${number}`), ids };
     setSettings((current) => ({
       ...current,
       playlists: [...current.playlists, created],
@@ -111,52 +116,49 @@ export function App() {
       return { ...current, playlists, current: playlists[0]!.id };
     });
   }
-  function move(id: string, offset: number) {
-    const ids = [...playlist.ids];
-    const index = ids.indexOf(id);
-    const other = index + offset;
-    if (index < 0 || other < 0 || other >= ids.length) return;
-    [ids[index], ids[other]] = [ids[other]!, ids[index]!];
-    changePlaylist({ ids });
-  }
-  function toggle(id: string) {
-    changePlaylist({
-      ids: playlist.ids.includes(id)
-        ? playlist.ids.filter((item) => item !== id)
-        : [...playlist.ids, id],
-    });
+  function uploadPhotos(playlistId: string | null) {
+    uploadInto.current = playlistId;
+    input.current?.click();
   }
   async function importFiles(files: FileList | null) {
     if (!files?.length) return;
+    const target = uploadInto.current;
+    uploadInto.current = null;
     await run(async () => {
       let imported = 0;
+      const uploaded: string[] = [];
+      let failure: unknown = null;
       try {
         for (const file of files) {
           setNotice(`Importing ${++imported} of ${files.length}…`);
-          await upload(file);
+          uploaded.push((await upload(file)).id);
         }
-      } finally {
-        await refresh();
-        if (input.current) input.current.value = '';
+      } catch (e) {
+        failure = e;
       }
+      await refresh();
+      if (input.current) input.current.value = '';
+      // Even when a later file fails, the ones already uploaded join the playlist.
+      const into = settings.playlists.find((p) => p.id === target);
+      if (into && uploaded.length > 0) {
+        const problem = savePlaylist(addToPlaylist(into, uploaded));
+        if (problem) throw new Error(`Uploaded to the library, not the playlist: ${problem}`);
+      }
+      if (failure) throw failure;
     });
   }
-  // Live videos can't join the photo playlist, so the playlist never shows the Live chip.
-  const filter = tab === 'playlist' && chosenFilter === 'live' ? 'all' : chosenFilter;
+  const filter = chosenFilter;
   const favorites = filter === 'favorites';
   const visible = wallpapers.filter(
-    (w) =>
-      (!favorites || w.favorite) &&
-      (tab !== 'playlist' || playlist.ids.includes(w.id)) &&
-      w.name.toLowerCase().includes(query.toLowerCase()),
+    (w) => (!favorites || w.favorite) && w.name.toLowerCase().includes(query.toLowerCase()),
   );
-  if (tab === 'playlist')
-    visible.sort((a, b) => playlist.ids.indexOf(a.id) - playlist.ids.indexOf(b.id));
+  const addingWallpaper = wallpapers.find((w) => w.id === adding);
+  function thumbnail(id: string): string {
+    return imageUrl(id, config, true);
+  }
   const detail = wallpapers.find((w) => w.id === selected);
   const liveDetail = findLive(selected);
   const profile = devices[settings.device];
-  // Only once the library has loaded: before that every playlist image would look missing.
-  const missing = loading ? [] : playlist.ids.filter((id) => !wallpapers.some((w) => w.id === id));
   return (
     <div className="app-layout">
       <aside className="sidebar">
@@ -212,13 +214,15 @@ export function App() {
                 : 'Save playlists for the home and lock screen. Each screen runs one at a time.'}
             </p>
           </div>
-          <button
-            className="primary upload-button"
-            disabled={busy}
-            onClick={() => input.current?.click()}
-          >
-            <span>+</span> Add wallpapers
-          </button>
+          {tab === 'library' && (
+            <button
+              className="primary upload-button"
+              disabled={busy}
+              onClick={() => uploadPhotos(null)}
+            >
+              <span>+</span> Upload photos
+            </button>
+          )}
           <input
             ref={input}
             type="file"
@@ -244,218 +248,141 @@ export function App() {
           </div>
         )}
         {tab === 'playlist' && (
+          <PlaylistPage
+            settings={settings}
+            setDevice={(device) => setSettings((current) => ({ ...current, device }))}
+            native={native}
+            refreshNative={refreshNative}
+            busy={busy}
+            run={(action) => {
+              void run(action);
+            }}
+            wallpapers={wallpapers}
+            loading={loading}
+            thumbnail={thumbnail}
+            open={setSelected}
+            upload={() => uploadPhotos(playlist.id)}
+            save={savePlaylist}
+            select={selectPlaylist}
+            create={() => createPlaylist()}
+            remove={removePlaylist}
+          />
+        )}
+        {tab === 'library' && (
           <>
-            <PhoneStatus
-              settings={settings}
-              setDevice={(device) => setSettings((current) => ({ ...current, device }))}
-              native={native}
-              busy={busy}
-              run={(action) => {
-                void run(action);
-              }}
-              refreshNative={refreshNative}
-              select={selectPlaylist}
-            />
-            <PlaylistPicker
-              playlists={settings.playlists}
-              current={playlist.id}
-              running={runningRotations(native)}
-              select={selectPlaylist}
-              create={createPlaylist}
-              canCreate={settings.playlists.length < maxPlaylists}
-            />
-            <PlaylistSettings
-              key={playlist.id}
-              playlist={playlist}
-              settings={settings}
-              change={changePlaylist}
-              remove={() => removePlaylist(playlist.id)}
-              native={native}
-              busy={busy}
-              run={(action) => {
-                void run(action);
-              }}
-              refreshNative={refreshNative}
-            />
-            <h2 className="playlist-images-heading">Wallpapers in “{playlist.name}”</h2>
-          </>
-        )}
-        <div className="library-toolbar">
-          <div className="filter-tabs" role="group" aria-label="Wallpaper type">
-            <button
-              className={filter === 'all' ? 'filter-active' : ''}
-              aria-pressed={filter === 'all'}
-              onClick={() => setFilter('all')}
-            >
-              Images <small>{tab === 'playlist' ? playlist.ids.length : wallpapers.length}</small>
-            </button>
-            <button
-              className={favorites ? 'filter-active' : ''}
-              aria-pressed={favorites}
-              onClick={() => setFilter('favorites')}
-            >
-              ♡ Favorites
-            </button>
-            {tab === 'library' && (
-              <button
-                className={filter === 'live' ? 'filter-active' : ''}
-                aria-pressed={filter === 'live'}
-                onClick={() => setFilter('live')}
-              >
-                ✧ Live <small>{liveVideos.videos.length}</small>
-              </button>
-            )}
-          </div>
-          {tab === 'library' && (
-            <label className="adding-to">
-              Add to playlist
-              <select value={playlist.id} onChange={(e) => selectPlaylist(e.target.value)}>
-                {settings.playlists.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <input
-            type="search"
-            aria-label="Search wallpapers"
-            placeholder="Search wallpapers…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
-        {missing.length > 0 && (
-          <div className="alert">
-            {missing.length} image(s) in “{playlist.name}” were removed from the library.
-            <button
-              onClick={() =>
-                changePlaylist({ ids: playlist.ids.filter((id) => !missing.includes(id)) })
-              }
-            >
-              Remove missing entries
-            </button>
-          </div>
-        )}
-        {filter === 'live' ? (
-          <LiveLibrary
-            videos={liveVideos.videos}
-            loaded={liveVideos.loaded}
-            error={liveVideos.error}
-            query={query}
-            active={native.live?.active ? native.live.config : undefined}
-            onOpen={setSelected}
-          />
-        ) : loading ? (
-          <div className="empty-state">Loading wallpapers…</div>
-        ) : visible.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">▧</div>
-            <h2>
-              {query || favorites
-                ? 'No matching wallpapers.'
-                : tab === 'playlist'
-                  ? 'Playlist is empty.'
-                  : 'No wallpapers yet.'}
-            </h2>
-            <p>
-              {tab === 'playlist'
-                ? `Open the Library, choose “${playlist.name}” under Add to playlist and tap + on a wallpaper.`
-                : 'Upload photos to the shared library.'}
-            </p>
-            <button
-              onClick={() => (tab === 'playlist' ? setTab('library') : input.current?.click())}
-            >
-              {tab === 'playlist' ? 'Browse library' : 'Add your first wallpaper'}
-            </button>
-            {tab === 'library' && !query && !favorites && (
-              <button
-                className="starter-button"
-                disabled={busy}
-                onClick={() => {
-                  void run(async () => {
-                    setNotice('Adding abstract backgrounds…');
-                    await api('/api/wallpapers/starter', { method: 'POST' });
-                    await refresh();
-                  });
-                }}
-              >
-                Add abstract backgrounds
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="wallpaper-grid">
-            {visible.map((w) => (
-              <article className="wallpaper-card" key={w.id}>
+            <div className="library-toolbar">
+              <div className="filter-tabs" role="group" aria-label="Wallpaper type">
                 <button
-                  className="wallpaper-image"
-                  onClick={() => setSelected(w.id)}
-                  aria-label={`Preview ${w.name}`}
+                  className={filter === 'all' ? 'filter-active' : ''}
+                  aria-pressed={filter === 'all'}
+                  onClick={() => setFilter('all')}
                 >
-                  <img loading="lazy" src={imageUrl(w.id, config, true)} alt={w.name} />
-                  <span className="image-type">IMAGE</span>
-                  <span className="preview-label">Preview & style ↗</span>
+                  Images <small>{wallpapers.length}</small>
                 </button>
                 <button
-                  className={`favorite-button ${w.favorite ? 'is-favorite' : ''}`}
-                  aria-label={`${w.favorite ? 'Unfavorite' : 'Favorite'} ${w.name}`}
-                  onClick={() => {
-                    void run(async () => {
-                      await api(`/api/wallpapers/${w.id}`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ favorite: !w.favorite }),
-                      });
-                      await refresh();
-                    });
-                  }}
+                  className={favorites ? 'filter-active' : ''}
+                  aria-pressed={favorites}
+                  onClick={() => setFilter('favorites')}
                 >
-                  {w.favorite ? '♥' : '♡'}
+                  ♡ Favorites
                 </button>
-                <div className="card-info">
-                  <div>
-                    <h3>{w.name}</h3>
-                    <span>
-                      {tab === 'playlist' ? `${playlist.ids.indexOf(w.id) + 1} · ` : ''}
-                      {w.width} × {w.height}
-                    </span>
-                  </div>
+                <button
+                  className={filter === 'live' ? 'filter-active' : ''}
+                  aria-pressed={filter === 'live'}
+                  onClick={() => setFilter('live')}
+                >
+                  ✧ Live <small>{liveVideos.videos.length}</small>
+                </button>
+              </div>
+              <input
+                type="search"
+                aria-label="Search wallpapers"
+                placeholder="Search wallpapers…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+            {filter === 'live' ? (
+              <LiveLibrary
+                videos={liveVideos.videos}
+                loaded={liveVideos.loaded}
+                error={liveVideos.error}
+                query={query}
+                active={native.live?.active ? native.live.config : undefined}
+                onOpen={setSelected}
+              />
+            ) : loading ? (
+              <div className="empty-state">Loading wallpapers…</div>
+            ) : visible.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">▧</div>
+                <h2>{query || favorites ? 'No matching wallpapers.' : 'No wallpapers yet.'}</h2>
+                <p>Upload photos to the shared library.</p>
+                <button onClick={() => uploadPhotos(null)}>Upload your first photos</button>
+                {!query && !favorites && (
                   <button
-                    className={`playlist-add ${playlist.ids.includes(w.id) ? 'is-added' : ''}`}
-                    aria-label={`${playlist.ids.includes(w.id) ? 'Remove from' : 'Add to'} ${playlist.name}: ${w.name}`}
-                    onClick={() => toggle(w.id)}
+                    className="starter-button"
+                    disabled={busy}
+                    onClick={() => {
+                      void run(async () => {
+                        setNotice('Adding abstract backgrounds…');
+                        await api('/api/wallpapers/starter', { method: 'POST' });
+                        await refresh();
+                      });
+                    }}
                   >
-                    {playlist.ids.includes(w.id) ? '✓' : '+'}
+                    Add abstract backgrounds
                   </button>
-                </div>
-                {tab === 'playlist' && (
-                  <div className="playlist-order">
-                    <button
-                      aria-label={`Move ${w.name} earlier`}
-                      disabled={playlist.ids.indexOf(w.id) === 0}
-                      onClick={() => move(w.id, -1)}
-                    >
-                      ← Earlier
-                    </button>
-                    <button
-                      aria-label={`Move ${w.name} later`}
-                      disabled={playlist.ids.indexOf(w.id) === playlist.ids.length - 1}
-                      onClick={() => move(w.id, 1)}
-                    >
-                      Later →
-                    </button>
-                  </div>
                 )}
-              </article>
-            ))}
-          </div>
-        )}
-        {filter !== 'live' && (
-          <div className="collection-footer">
-            <span>{visible.length} wallpapers</span>
-          </div>
+              </div>
+            ) : (
+              <div className="wallpaper-grid">
+                {visible.map((w) => (
+                  <article className="wallpaper-card" key={w.id}>
+                    <button
+                      className="wallpaper-image"
+                      onClick={() => setSelected(w.id)}
+                      aria-label={`Preview ${w.name}`}
+                    >
+                      <img loading="lazy" src={thumbnail(w.id)} alt={w.name} />
+                      <span className="image-type">IMAGE</span>
+                      <span className="preview-label">Preview & style ↗</span>
+                    </button>
+                    <button
+                      className={`favorite-button ${w.favorite ? 'is-favorite' : ''}`}
+                      aria-label={`${w.favorite ? 'Unfavorite' : 'Favorite'} ${w.name}`}
+                      onClick={() => {
+                        void run(async () => {
+                          await api(`/api/wallpapers/${w.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ favorite: !w.favorite }),
+                          });
+                          await refresh();
+                        });
+                      }}
+                    >
+                      {w.favorite ? '♥' : '♡'}
+                    </button>
+                    <div className="card-info">
+                      <div>
+                        <h3>{w.name}</h3>
+                        <span>
+                          {w.width} × {w.height}
+                        </span>
+                      </div>
+                      {playlistButton(w)}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+            {filter !== 'live' && (
+              <div className="collection-footer">
+                <span>{visible.length} wallpapers</span>
+              </div>
+            )}
+          </>
         )}
         <footer>
           <span>Luma</span>
@@ -464,6 +391,25 @@ export function App() {
           )}
         </footer>
       </main>
+      {addingWallpaper && (
+        <AddToPlaylistSheet
+          wallpaper={addingWallpaper}
+          playlists={settings.playlists}
+          thumbnail={thumbnail(addingWallpaper.id)}
+          toggle={(playlistId) => {
+            const target = settings.playlists.find((p) => p.id === playlistId)!;
+            if (target.ids.includes(addingWallpaper.id))
+              return savePlaylist(removeFromPlaylist(target, [addingWallpaper.id]));
+            return savePlaylist(addToPlaylist(target, [addingWallpaper.id]));
+          }}
+          create={() => {
+            createPlaylist([addingWallpaper.id]);
+            return null;
+          }}
+          canCreate={settings.playlists.length < maxPlaylists}
+          close={() => setAdding(null)}
+        />
+      )}
       {liveDetail && (
         <LiveDetail
           item={liveDetail}
@@ -520,10 +466,7 @@ export function App() {
             await api(`/api/wallpapers/${detail.id}`, { method: 'DELETE' });
             setSettings((current) => ({
               ...current,
-              playlists: current.playlists.map((p) => ({
-                ...p,
-                ids: p.ids.filter((id) => id !== detail.id),
-              })),
+              playlists: current.playlists.map((p) => removeFromPlaylist(p, [detail.id])),
             }));
             setSelected(null);
             await refresh();
@@ -540,6 +483,23 @@ export function App() {
       )}
     </div>
   );
+  // Opens the sheet for choosing which playlists hold this wallpaper.
+  function playlistButton(wallpaper: Wallpaper) {
+    const count = settings.playlists.filter((p) => p.ids.includes(wallpaper.id)).length;
+    let label = `Add ${wallpaper.name} to a playlist`;
+    if (count > 0)
+      label = `${wallpaper.name} is in ${count} playlist${count === 1 ? '' : 's'}. Change`;
+    return (
+      <button
+        className={`playlist-add ${count > 0 ? 'is-added' : ''}`}
+        aria-label={label}
+        onClick={() => setAdding(wallpaper.id)}
+      >
+        {count > 0 ? '✓' : '+'}
+        {count > 1 && <small>{count}</small>}
+      </button>
+    );
+  }
   function findLive(key: string | null): LiveItem | undefined {
     for (const video of liveVideos.videos)
       if (key === liveKey('video', video.id)) return { kind: 'video', video };

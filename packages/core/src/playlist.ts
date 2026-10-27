@@ -1,6 +1,8 @@
 import {
   defaultRotation,
+  isClockTime,
   isPlaylistId,
+  isWallpaperId,
   isPlaylistName,
   migrateRotation,
   validateRotation,
@@ -20,6 +22,9 @@ export interface Playlist {
   mode: Rotation['mode'];
   intervalMinutes: number;
   dailyTimes: string[];
+  // Start time per wallpaper for the timed mode. Kept by ID, so reordering for the other modes
+  // and switching modes never loses them.
+  startTimes: Record<string, string>;
   shuffle: boolean;
 }
 // The Galaxy profile and per-wallpaper adjustments belong to the phone, so every playlist
@@ -47,10 +52,16 @@ export function newPlaylist(id: string, name: string): Playlist {
     mode: defaultRotation.mode,
     intervalMinutes: defaultRotation.intervalMinutes,
     dailyTimes: [...defaultRotation.dailyTimes],
+    startTimes: {},
     shuffle: defaultRotation.shuffle,
   };
 }
 export function playlistFromRotation(rotation: Rotation): Playlist {
+  const startTimes: Record<string, string> = {};
+  for (const [index, id] of rotation.ids.entries()) {
+    const start = rotation.startTimes?.[index];
+    if (start) startTimes[id] = start;
+  }
   return {
     id: rotation.playlistId ?? firstPlaylistId,
     name: rotation.name ?? firstPlaylistName,
@@ -59,8 +70,25 @@ export function playlistFromRotation(rotation: Rotation): Playlist {
     mode: rotation.mode,
     intervalMinutes: rotation.intervalMinutes,
     dailyTimes: [...rotation.dailyTimes],
+    startTimes,
     shuffle: rotation.shuffle,
   };
+}
+// Playlists saved before start times existed have none.
+export function upgradeSettings(saved: PhoneSettings): PhoneSettings {
+  if (!Array.isArray(saved.playlists)) return saved;
+  return {
+    ...saved,
+    playlists: saved.playlists.map(function withStartTimes(playlist) {
+      return { ...playlist, startTimes: playlist.startTimes ?? {} };
+    }),
+  };
+}
+// The order a timed playlist runs in: by start time, with wallpapers that have none last.
+export function timedOrder(playlist: Pick<Playlist, 'ids' | 'startTimes'>): string[] {
+  const timed = playlist.ids.filter((id) => playlist.startTimes[id] !== undefined);
+  timed.sort((a, b) => playlist.startTimes[a]!.localeCompare(playlist.startTimes[b]!));
+  return [...timed, ...playlist.ids.filter((id) => playlist.startTimes[id] === undefined)];
 }
 export function settingsFromRotation(rotation: Rotation, preview?: string | null): PhoneSettings {
   const migrated = migrateRotation(rotation, preview);
@@ -81,7 +109,8 @@ export function playlistRotation(
   settings: PhoneSettings,
   enabled: boolean,
 ): Rotation {
-  const { id, ...fields } = playlist;
+  // Timed playlists send their start times as a list aligned with ids instead.
+  const { id, startTimes: _startTimes, ...fields } = playlist;
   const styles: Record<string, WallpaperStyle> = {};
   for (const wallpaper of playlist.ids) {
     const style = settings.styles[wallpaper];
@@ -97,11 +126,24 @@ export function playlistRotation(
     device: settings.device,
     styles,
     enabled,
+    ...timedFields(playlist),
   };
+}
+function timedFields(playlist: Playlist): Partial<Rotation> {
+  if (playlist.mode !== 'timed') return {};
+  const ids = timedOrder(playlist);
+  return { ids, startTimes: ids.map((id) => playlist.startTimes[id] ?? '') };
 }
 export function validatePlaylist(playlist: Playlist): void {
   if (!isPlaylistId(playlist.id)) throw new Error('Invalid playlist');
   if (!isPlaylistName(playlist.name)) throw new Error('Name the playlist (up to 60 characters)');
+  const starts = playlist.startTimes;
+  if (!starts || typeof starts !== 'object' || Array.isArray(starts))
+    throw new Error('Invalid start times');
+  for (const [id, start] of Object.entries(starts))
+    if (!isWallpaperId(id) || !isClockTime(start)) throw new Error('Use start times like 07:00');
+  if (playlist.mode === 'timed' && playlist.ids.some((id) => starts[id] === undefined))
+    throw new Error('Give every wallpaper a start time');
   validateRotation(
     playlistRotation(playlist, { ...emptySettings(), playlists: [playlist] }, false),
   );
@@ -195,6 +237,8 @@ export function differsFromRunning(
     return true;
   if (wanted.mode === 'interval' && wanted.intervalMinutes !== saved.intervalMinutes) return true;
   if (wanted.mode === 'daily' && wanted.dailyTimes.join() !== saved.dailyTimes.join()) return true;
+  if (wanted.mode === 'timed' && wanted.startTimes?.join() !== saved.startTimes?.join())
+    return true;
   for (const id of wanted.ids) {
     if (!sameStyle(wallpaperStyle(wanted, id), wallpaperStyle(saved, id))) return true;
   }

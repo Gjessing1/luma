@@ -66,9 +66,12 @@ export interface Rotation extends WallpaperStyle {
   ids: string[];
   device: Device;
   target: Target;
-  mode: 'interval' | 'daily';
+  // interval and daily advance to the next image; timed shows ids[i] from startTimes[i] each day.
+  mode: 'interval' | 'daily' | 'timed';
   intervalMinutes: number;
   dailyTimes: string[];
+  // Aligned with ids in clock order; only sent for timed rotations (APK 0.1.5).
+  startTimes?: string[];
   shuffle: boolean;
   enabled: boolean;
 }
@@ -102,7 +105,7 @@ export function validateRotation(rotation: Rotation): void {
     throw new Error('Name the playlist (up to 60 characters)');
   if (!(rotation.device in devices)) throw new Error('Unknown Galaxy profile');
   if (!['home', 'lock', 'both'].includes(rotation.target)) throw new Error('Invalid destination');
-  if (!['interval', 'daily'].includes(rotation.mode)) throw new Error('Invalid schedule');
+  if (!['interval', 'daily', 'timed'].includes(rotation.mode)) throw new Error('Invalid schedule');
   if (
     !Number.isInteger(rotation.intervalMinutes) ||
     rotation.intervalMinutes < 15 ||
@@ -113,9 +116,10 @@ export function validateRotation(rotation: Rotation): void {
     !Array.isArray(rotation.dailyTimes) ||
     rotation.dailyTimes.length < 1 ||
     rotation.dailyTimes.length > 24 ||
-    !rotation.dailyTimes.every((t) => /^([01]\d|2[0-3]):[0-5]\d$/.test(t))
+    !rotation.dailyTimes.every(isClockTime)
   )
     throw new Error('Use daily times like 07:00, 21:00');
+  if (rotation.mode === 'timed') validateStartTimes(rotation);
   validateStyle(rotation);
   if (rotation.styles !== undefined) {
     if (!rotation.styles || typeof rotation.styles !== 'object' || Array.isArray(rotation.styles))
@@ -133,6 +137,24 @@ export function validateRotation(rotation: Rotation): void {
     throw new Error('Invalid toggle');
   if (rotation.enabled && rotation.ids.length === 0)
     throw new Error('Add wallpapers to the playlist first');
+}
+export const maxTimedWallpapers = 24;
+export function isClockTime(time: unknown): time is string {
+  return typeof time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(time);
+}
+function validateStartTimes(rotation: Rotation): void {
+  const starts = rotation.startTimes;
+  if (rotation.ids.length > maxTimedWallpapers)
+    throw new Error(`A time of day playlist holds up to ${maxTimedWallpapers} wallpapers`);
+  if (!Array.isArray(starts) || starts.length !== rotation.ids.length)
+    throw new Error('Give every wallpaper a start time');
+  let previous = '';
+  for (const start of starts) {
+    if (!isClockTime(start)) throw new Error('Use start times like 07:00');
+    if (start === previous) throw new Error(`Two wallpapers start at ${start}`);
+    if (start < previous) throw new Error('Start times must be in clock order');
+    previous = start;
+  }
 }
 export function isPlaylistId(id: unknown): id is string {
   return typeof id === 'string' && /^[a-z0-9-]{1,64}$/.test(id);

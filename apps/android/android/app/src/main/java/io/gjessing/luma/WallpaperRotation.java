@@ -55,12 +55,13 @@ final class WallpaperRotation {
         for (int i = 0; i < ids.length(); i++) if (!ids.getString(i).matches("[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}")) throw new Exception("Invalid wallpaper ID");
         if (!config.getString("device").matches("s24-ultra|s25")) throw new Exception("Unknown Galaxy profile");
         if (!config.getString("target").matches("home|lock|both")) throw new Exception("Unknown wallpaper destination");
-        if (!config.getString("mode").matches("interval|daily")) throw new Exception("Unknown schedule");
+        if (!config.getString("mode").matches("interval|daily|timed")) throw new Exception("Unknown schedule");
         int minutes = config.getInt("intervalMinutes");
         if (minutes < 15 || minutes > 10080) throw new Exception("Minimum interval is 15 minutes");
         JSONArray times = config.getJSONArray("dailyTimes");
         if (times.length() < 1 || times.length() > 24) throw new Exception("Choose 1–24 daily times");
         for (int i = 0; i < times.length(); i++) if (!times.getString(i).matches("([01][0-9]|2[0-3]):[0-5][0-9]")) throw new Exception("Use HH:mm daily times");
+        if (config.getString("mode").equals("timed")) validateStartTimes(config);
         validateStyle(config);
         if (config.has("styles")) {
             JSONObject styles = config.getJSONObject("styles");
@@ -72,6 +73,17 @@ final class WallpaperRotation {
             }
         }
         config.getBoolean("shuffle");
+    }
+    /** Time of day: ids[i] shows from startTimes[i], so the lists align and run in clock order. */
+    private static void validateStartTimes(JSONObject config) throws Exception {
+        JSONArray ids = config.getJSONArray("ids"), starts = config.getJSONArray("startTimes");
+        if (starts.length() != ids.length() || starts.length() > 24) throw new Exception("Give each of up to 24 wallpapers a start time");
+        String previous = "";
+        for (int i = 0; i < starts.length(); i++) {
+            String time = starts.getString(i);
+            if (!time.matches("([01][0-9]|2[0-3]):[0-5][0-9]") || time.compareTo(previous) <= 0) throw new Exception("Use different HH:mm start times in clock order");
+            previous = time;
+        }
     }
     private static void validateStyle(JSONObject style) throws Exception {
         for (String key : new String[]{"focalX", "focalY"}) checkRange(style.getDouble(key));
@@ -92,7 +104,7 @@ final class WallpaperRotation {
     static long nextTime(JSONObject config, long now) throws Exception {
         if (config.getString("mode").equals("interval")) return now + config.getLong("intervalMinutes") * 60000;
         long next = Long.MAX_VALUE;
-        JSONArray times = config.getJSONArray("dailyTimes");
+        JSONArray times = config.getJSONArray(config.getString("mode").equals("timed") ? "startTimes" : "dailyTimes");
         for (int i = 0; i < times.length(); i++) {
             String[] parts = times.getString(i).split(":");
             Calendar time = Calendar.getInstance();
@@ -105,6 +117,30 @@ final class WallpaperRotation {
             next = Math.min(next, time.getTimeInMillis());
         }
         return next;
+    }
+    static boolean timed(JSONObject config) throws Exception { return config.getString("mode").equals("timed"); }
+    /** The image whose start time came last; before the first start, the last one from yesterday. */
+    static int timedIndex(JSONObject config, long now) throws Exception {
+        JSONArray starts = config.getJSONArray("startTimes");
+        Calendar time = Calendar.getInstance();
+        time.setTimeInMillis(now);
+        int minutes = time.get(Calendar.HOUR_OF_DAY) * 60 + time.get(Calendar.MINUTE);
+        int index = starts.length() - 1;
+        for (int i = 0; i < starts.length(); i++) {
+            String[] parts = starts.getString(i).split(":");
+            if (Integer.parseInt(parts[0]) * 60 + Integer.parseInt(parts[1]) <= minutes) index = i;
+        }
+        return index;
+    }
+    /** Where a newly started playlist begins: the image for the current time, or the first. */
+    static int firstIndex(JSONObject config, long now) throws Exception { return timed(config) ? timedIndex(config, now) : 0; }
+    /** After boot or a clock change a missed start would leave the wrong image until the next one. */
+    static void catchUp(Context context) throws Exception {
+        for (String slot : SLOTS) {
+            JSONObject config = config(context, slot);
+            if (config == null || !config.getBoolean("enabled") || !timed(config)) continue;
+            if (prefs(context).getInt(key("index", slot), -1) != timedIndex(config, System.currentTimeMillis())) advance(context, slot);
+        }
     }
     static void schedule(Context context, String slot) throws Exception {
         AlarmManager manager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
@@ -133,7 +169,9 @@ final class WallpaperRotation {
         JSONArray ids = config.getJSONArray("ids");
         int previous = prefs(context).getInt(key("index", slot), -1);
         int index = (previous + 1) % ids.length();
-        if (config.getBoolean("shuffle") && ids.length() > 1) {
+        // A late alarm still shows the image for the current time instead of drifting by one.
+        if (timed(config)) index = timedIndex(config, System.currentTimeMillis());
+        else if (config.getBoolean("shuffle") && ids.length() > 1) {
             index = new Random().nextInt(ids.length() - 1);
             if (index >= previous && previous >= 0) index++;
         }
@@ -144,14 +182,15 @@ final class WallpaperRotation {
             .putString(key("lastId", slot), id).remove(key("error", slot)).apply();
     }
     /** Records a started playlist, already applied with its first image, and stops what it replaces. */
-    static void install(Context context, JSONObject config, String generation, String firstId) throws Exception {
+    static void install(Context context, JSONObject config, String generation, int index) throws Exception {
+        String firstId = config.getJSONArray("ids").getString(index);
         String target = config.getString("target"), slot = slotOf(target);
         SharedPreferences.Editor editor = prefs(context).edit();
         if (target.equals("both")) clear(editor, "lock");
         JSONObject home = config(context, "home");
         if (target.equals("lock") && home != null && home.getString("target").equals("both")) clear(editor, "home");
         clear(editor, slot);
-        editor.putString(key("config", slot), config.toString()).putString(key("generation", slot), generation).putInt(key("index", slot), 0)
+        editor.putString(key("config", slot), config.toString()).putString(key("generation", slot), generation).putInt(key("index", slot), index)
             .putLong(key("lastApplied", slot), System.currentTimeMillis()).putString(key("lastId", slot), firstId);
         if (!editor.commit()) throw new Exception("Could not save the playlist");
         scheduleAll(context);
@@ -196,6 +235,7 @@ final class WallpaperRotation {
         state.put("supportsLiveVideo", true);
         state.put("supportsZoom", true);
         state.put("supportsPlaylists", true);
+        state.put("supportsTimedSchedule", true);
         state.put("live", LiveWallpaperSettings.state(context));
         if (prefs.contains("lastApplied")) state.put("lastApplied", prefs.getLong("lastApplied", 0));
         if (prefs.contains("lastId")) state.put("lastId", prefs.getString("lastId", ""));

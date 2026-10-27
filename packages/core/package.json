@@ -21,6 +21,10 @@
       "types": "./dist/playlist.d.ts",
       "default": "./dist/playlist.js"
     },
+    "./playlist-edit": {
+      "types": "./dist/playlist-edit.d.ts",
+      "default": "./dist/playlist-edit.js"
+    },
     "./live-wallpaper": {
       "types": "./dist/live-wallpaper.d.ts",
       "default": "./dist/live-wallpaper.js"
