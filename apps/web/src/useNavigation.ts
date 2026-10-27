@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-type Tab = 'library' | 'playlist' | 'schedule' | 'live';
+type Tab = 'library' | 'playlist' | 'schedule';
 interface Screen {
   tab: Tab;
   selected: string | null;
@@ -8,12 +8,20 @@ interface Screen {
 function restoredScreen(): Screen {
   const saved = localStorage.getItem('luma.tab');
   return {
-    tab: saved === 'playlist' || saved === 'schedule' || saved === 'live' ? saved : 'library',
+    tab: saved === 'playlist' || saved === 'schedule' ? saved : 'library',
     selected: localStorage.getItem('luma.preview'),
   };
 }
+// History from before live wallpapers moved into the Library may still name a 'live' tab.
+function knownScreen(screen: Screen): Screen {
+  return screen.tab === 'playlist' || screen.tab === 'schedule'
+    ? screen
+    : { ...screen, tab: 'library' };
+}
 export function useNavigation() {
-  const [screen, setScreen] = useState<Screen>(() => history.state?.luma ?? restoredScreen());
+  const [screen, setScreen] = useState<Screen>(() =>
+    history.state?.luma ? knownScreen(history.state.luma as Screen) : restoredScreen(),
+  );
   useEffect(() => {
     if (!history.state?.luma) {
       history.replaceState({ luma: { tab: 'library', selected: null } }, '');
@@ -21,7 +29,7 @@ export function useNavigation() {
       if (screen.selected) history.pushState({ luma: screen }, '');
     }
     function back(event: PopStateEvent) {
-      if (event.state?.luma) setScreen(event.state.luma as Screen);
+      if (event.state?.luma) setScreen(knownScreen(event.state.luma as Screen));
     }
     window.addEventListener('popstate', back);
     return () => window.removeEventListener('popstate', back);

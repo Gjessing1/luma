@@ -206,30 +206,41 @@ try {
   await page.getByRole('heading', { name: 'Playlist', exact: true }).waitFor();
   await page.goBack();
   await page.getByRole('heading', { name: 'Library', exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Live wallpaper', exact: true }).click();
-  await page.getByRole('heading', { name: 'Live wallpaper', exact: true, level: 1 }).waitFor();
+  // Live wallpapers live under the Library's Live chip; there is no separate tab any more.
+  assert.equal(await page.getByRole('button', { name: 'Live wallpaper', exact: true }).count(), 0);
+  await page.locator('.filter-tabs button', { hasText: 'Live' }).click();
   // Generated scenes start folded away so the video collection leads.
-  assert.equal(await page.locator('.live-scene-card').first().isVisible(), false);
+  const aurora = page.getByRole('button', { name: 'Preview live wallpaper Aurora', exact: true });
+  assert.equal(await aurora.isVisible(), false);
   await page.getByText('Generated scenes ·').click();
-  assert.equal(await page.locator('.live-scene-card').count(), 3);
+  assert.equal(await page.locator('.generated-scenes .wallpaper-card').count(), 3);
+  await page
+    .getByRole('button', { name: 'Preview live wallpaper Weather landscape', exact: true })
+    .click();
+  const liveDialog = page.getByRole('dialog', { name: 'Live wallpaper preview' });
+  await liveDialog.waitFor();
   assert.equal(
-    await page
+    await liveDialog
       .getByRole('button', { name: 'Save & open Android preview', exact: true })
       .isDisabled(),
     true,
   );
-  await page.getByRole('button', { name: 'Weather landscape', exact: false }).click();
   for (const weather of ['clear', 'clouds', 'rain', 'snow', 'storm', 'auto']) {
-    await page.getByLabel('Weather source').selectOption(weather);
+    await liveDialog.getByLabel('Weather source').selectOption(weather);
   }
-  await page.getByLabel('Latitude', { exact: true }).fill('60.39');
-  await page.getByLabel('Longitude', { exact: true }).fill('5.32');
+  await liveDialog.getByLabel('Latitude', { exact: true }).fill('60.39');
+  await liveDialog.getByLabel('Longitude', { exact: true }).fill('5.32');
   await page.reload();
-  assert.equal(await page.getByLabel('Weather source').inputValue(), 'auto');
-  assert.equal(await page.getByLabel('Latitude', { exact: true }).inputValue(), '60.39');
-  await page.getByText('Selected: Weather landscape (generated scene)').waitFor();
+  await liveDialog.waitFor();
+  assert.equal(await liveDialog.getByLabel('Weather source').inputValue(), 'auto');
+  assert.equal(await liveDialog.getByLabel('Latitude', { exact: true }).inputValue(), '60.39');
+  await liveDialog.getByRole('heading', { name: 'Weather landscape', exact: true }).waitFor();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   await page.screenshot({ path: 'test-results/live-settings-mobile.png', fullPage: true });
+  // Back closes the preview and keeps the Live chip.
+  await page.goBack();
+  await liveDialog.waitFor({ state: 'hidden' });
+  assert.equal(await page.locator('.filter-active').innerText(), '✧ Live 0');
   await page.getByRole('button', { name: 'Library', exact: true }).click();
   // Browser install link is quiet; Android only offers a download for a newer installed version.
   await page.route('**/api/app/version', (route) =>

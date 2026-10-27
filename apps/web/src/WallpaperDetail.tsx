@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { originalStyle, type Target, type Rotation, type Wallpaper } from '@luma/core/wallpaper';
 import { PhonePreview } from './PhonePreview';
 import { FramePanel, StylePanel } from './AdjustmentPanels';
 import { imageUrl, wallpaperBridge } from './wallpaper-client';
+import { useModal } from './useModal';
 
 interface Props {
   wallpaper: Wallpaper;
@@ -48,37 +49,7 @@ export function WallpaperDetail({
     setUndo(gesture.current ?? config);
     setConfig(next);
   }
-  const dialogRef = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    dialogRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
-    function keyboard(event: KeyboardEvent) {
-      if (event.key === 'Escape') close();
-      if (event.key !== 'Tab') return;
-      const elements = [
-        ...(dialogRef.current?.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), input, select, a[href], summary',
-        ) ?? []),
-      ];
-      const first = elements[0],
-        last = elements.at(-1);
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last?.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first?.focus();
-      }
-    }
-    document.addEventListener('keydown', keyboard);
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', keyboard);
-      document.body.style.overflow = overflow;
-      previous?.focus();
-    };
-  }, []);
+  const dialogRef = useModal(close);
   const bridge = wallpaperBridge();
   function toggle(next: Tool) {
     const value = tool === next ? null : next;
@@ -219,9 +190,9 @@ export function WallpaperDetail({
             </p>
           )}
           <p className="muted small">
-            Apply sets this photo immediately, without Android’s preview. For animated scenes, close
-            this photo and open Live wallpaper → Save & open Android preview. For Samsung’s photo
-            preview and effects, export to Gallery and open the One UI picker below.
+            Apply sets this photo immediately, without Android’s preview. For a moving wallpaper,
+            choose one under Library → Live. For Samsung’s photo preview and effects, export to
+            Gallery and open the One UI picker below.
           </p>
           <details>
             <summary>Samsung Photo ambient & One UI effects</summary>

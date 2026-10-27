@@ -109,12 +109,13 @@ try {
   });
   await delay(2000);
   await connect();
-  await page.getByRole('button', { name: 'Live wallpaper', exact: true }).click();
+  await page.getByRole('button', { name: 'Library', exact: true }).click();
+  await page.locator('.filter-tabs button', { hasText: 'Live' }).click();
   // Generated scenes are folded beneath the video collection.
   const generated = page.locator('details.generated-scenes');
   if (!(await generated.evaluate((element) => element.open)))
     await generated.locator('summary').click();
-  await page.locator('.live-scene-card', { hasText: 'Aurora' }).click();
+  await page.getByRole('button', { name: 'Preview live wallpaper Aurora', exact: true }).click();
   // An animating preview never idles, which blocks uiautomator; start motion after Set.
   await page.getByLabel('Animate wallpaper', { exact: true }).uncheck();
   await page.getByRole('button', { name: 'Save & open Android preview', exact: true }).click();
@@ -176,14 +177,15 @@ try {
   // Switch the running generated scene to a video through the UI. The engine's surface has
   // already been drawn with Canvas, so the UI must route through Android's preview.
   await app();
+  if (await page.getByRole('dialog').count())
+    await page.getByRole('button', { name: 'Close preview' }).click();
   await page
-    .locator('.live-video-card', { hasText: 'Sea nettles' })
-    .getByRole('button', { name: 'Choose wallpaper', exact: true })
+    .getByRole('button', { name: 'Preview live wallpaper Sea nettles', exact: true })
     .click();
   // uiautomator cannot dump a window that never idles, so pick the destination while the
   // preview shows a still frame and start motion afterwards.
   await page.getByLabel('Animate wallpaper', { exact: true }).uncheck();
-  await page.getByText('Selected: Sea nettles').waitFor();
+  await page.getByRole('heading', { name: 'Sea nettles', exact: true }).waitFor();
   assert.equal(
     await page.getByRole('button', { name: 'Save live wallpaper', exact: true }).count(),
     0,

@@ -44,7 +44,7 @@ SVG photo placeholders of different widths must clip in the outer widget's
 coordinate system. Clipping inside the scaled illustration can leave its far
 corners square; inspect both widget sizes in the captured preview.
 
-Live wallpaper checks cover all three example cards, offline/automatic weather
+Live wallpaper checks (Library → Live chip → preview dialog) cover all three example cards, offline/automatic weather
 controls, coordinate draft persistence, browser-only disabled activation, and mobile
 overflow. The actual animation and Android picker run in the Android harness.
 

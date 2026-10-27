@@ -12,10 +12,10 @@ import { useNavigation } from './useNavigation';
 import { appShell } from './android-shell';
 import type { PublishedApp } from './app-update';
 import { AppUpdateNotice } from './AppUpdateNotice';
-import { LiveWallpaperSettings } from './LiveWallpaperSettings';
-import { useLiveVideos } from './LiveVideoCollection';
-import { LiveLibrary } from './LiveLibrary';
-import { defaultLiveWallpaper } from '@luma/core/live-wallpaper';
+import { useLiveVideos } from './useLiveVideos';
+import { LiveLibrary, liveKey } from './LiveLibrary';
+import { LiveDetail, type LiveItem } from './LiveDetail';
+import { liveScenes } from '@luma/core/live-wallpaper';
 import { RotationSettings } from './RotationSettings';
 import { WallpaperDetail } from './WallpaperDetail';
 import {
@@ -33,7 +33,9 @@ export function App() {
   const [native, setNative] = useState<NativeState>({});
   const { tab, setTab, selected, setSelected } = useNavigation();
   const [query, setQuery] = useState('');
-  const [chosenFilter, setFilter] = useState<'all' | 'favorites' | 'live'>('all');
+  const [chosenFilter, setFilter] = useState<'all' | 'favorites' | 'live'>(() =>
+    selected?.startsWith('video:') || selected?.startsWith('scene:') ? 'live' : 'all',
+  );
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -137,6 +139,7 @@ export function App() {
   if (tab === 'playlist')
     visible.sort((a, b) => config.ids.indexOf(a.id) - config.ids.indexOf(b.id));
   const detail = wallpapers.find((w) => w.id === selected);
+  const liveDetail = findLive(selected);
   const profile = devices[config.device];
   const missing = config.ids.filter((id) => !wallpapers.some((w) => w.id === id));
   return (
@@ -155,7 +158,6 @@ export function App() {
               ['library', '▦', 'Library'],
               ['playlist', '◫', 'My playlist'],
               ['schedule', '◷', 'Schedule'],
-              ['live', '✧', 'Live wallpaper'],
             ] as const
           ).map(([key, icon, title]) => (
             <button
@@ -201,7 +203,6 @@ export function App() {
                   library: 'Library',
                   playlist: 'Playlist',
                   schedule: 'Schedule',
-                  live: 'Live wallpaper',
                 }[tab]
               }
             </h1>
@@ -210,9 +211,7 @@ export function App() {
                 ? 'Add photos and choose wallpapers for your phone.'
                 : tab === 'playlist'
                   ? 'Choose the wallpapers to rotate on this phone.'
-                  : tab === 'live'
-                    ? 'Choose an animated background for your home screen.'
-                    : 'Set when this phone changes wallpaper.'}
+                  : 'Set when this phone changes wallpaper.'}
             </p>
           </div>
           <button
@@ -246,16 +245,7 @@ export function App() {
             {notice}
           </div>
         )}
-        {tab === 'live' ? (
-          <LiveWallpaperSettings
-            state={native}
-            busy={busy}
-            run={(action) => {
-              void run(action);
-            }}
-            refreshNative={setNative}
-          />
-        ) : tab === 'schedule' ? (
+        {tab === 'schedule' ? (
           <RotationSettings
             config={config}
             setConfig={setConfig}
@@ -331,13 +321,8 @@ export function App() {
                 loaded={liveVideos.loaded}
                 error={liveVideos.error}
                 query={query}
-                onSelect={(video) => {
-                  localStorage.setItem(
-                    'luma.live',
-                    JSON.stringify({ ...defaultLiveWallpaper, scene: 'video', videoId: video.id }),
-                  );
-                  setTab('live');
-                }}
+                active={native.live?.active ? native.live.config : undefined}
+                onOpen={setSelected}
               />
             ) : loading ? (
               <div className="empty-state">Loading wallpapers…</div>
@@ -458,6 +443,21 @@ export function App() {
           )}
         </footer>
       </main>
+      {liveDetail && (
+        <LiveDetail
+          item={liveDetail}
+          key={selected}
+          device={config.device}
+          state={native}
+          busy={busy}
+          run={(action) => {
+            void run(action);
+          }}
+          refreshNative={setNative}
+          close={() => setSelected(null)}
+          remove={liveVideos.remove}
+        />
+      )}
       {detail && (
         <WallpaperDetail
           wallpaper={detail}
@@ -513,6 +513,13 @@ export function App() {
       )}
     </div>
   );
+  function findLive(key: string | null): LiveItem | undefined {
+    for (const video of liveVideos.videos)
+      if (key === liveKey('video', video.id)) return { kind: 'video', video };
+    for (const scene of liveScenes)
+      if (key === liveKey('scene', scene.id)) return { kind: 'scene', scene };
+    return undefined;
+  }
   function validateAndRun(action: () => Promise<void>) {
     void run(async () => {
       validateRotation(config);

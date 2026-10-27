@@ -1377,100 +1377,31 @@ summary {
   }
 }
 
-.live-scenes {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 24px;
-}
-.live-collection {
-  margin: 24px 0;
-}
-.live-video-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 20px;
-}
-.live-video-card {
-  border: 1px solid var(--line);
-  border-radius: 10px;
+.live-art {
+  display: block;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
-  min-width: 0;
+  background: #050d20;
 }
-.live-video-card.selected {
-  border-color: var(--mint);
-}
-.live-video-card video {
+.phone-preview > video {
   display: block;
   width: 100%;
-  aspect-ratio: 6 / 13;
-  max-height: 440px;
+  height: 100%;
   object-fit: cover;
   background: #07111b;
 }
-.live-video-info {
-  padding: 14px;
-  font-size: 12px;
-  line-height: 1.6;
-}
-.live-video-info h3 {
-  margin: 0 0 8px;
-}
-.live-video-info .button-row {
-  flex-wrap: wrap;
-  margin: 12px 0;
-}
-.live-video-info button {
-  padding: 9px;
-  font-size: 11px;
-}
-.live-video-info details {
-  color: var(--muted);
-  font-size: 10px;
-  overflow-wrap: anywhere;
-}
-.live-video-info summary {
-  cursor: pointer;
-}
-@media (max-width: 760px) {
-  .live-video-grid {
-    grid-template-columns: 1fr;
-  }
-  .live-video-card {
-    max-width: 360px;
-    width: 100%;
-    margin: 0 auto;
-  }
-  .live-video-card video {
-    max-height: none;
-  }
-}
-.live-scene-card {
-  padding: 10px;
-  text-align: left;
-  min-width: 0;
-}
-.live-scene-card[aria-pressed='true'] {
-  border-color: var(--mint);
-}
-.live-scene-card strong,
-.live-scene-card > span:last-child {
-  display: block;
-  margin: 10px 0;
-}
-.live-scene-card > span:last-child {
-  font-size: 11px;
-  color: var(--muted);
-  line-height: 1.6;
-}
-.live-art {
-  display: block;
-  position: relative;
-  overflow: hidden;
-  height: 180px;
-  border-radius: 6px;
-  background: #050d20;
+.active-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: #b6e6c9;
+  color: #1c3525;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 1px;
 }
 .live-aurora {
   background: radial-gradient(ellipse at 65% 80%, #43789b, transparent 50%), #050d20;
@@ -1542,21 +1473,19 @@ summary {
   background: #ffe4a2;
 }
 @media (max-width: 760px) {
-  .live-scenes {
-    grid-template-columns: 1fr;
-  }
-  .live-art {
-    height: 160px;
-  }
   nav button {
     padding-left: 8px;
     padding-right: 8px;
   }
 }
+.generated-scenes {
+  margin-top: 32px;
+}
 .generated-scenes > summary {
   font-size: 13px;
+  margin-bottom: 20px;
 }
-.live-selection {
-  font-size: 12px;
-  margin: 16px 0 0;
+.detail-controls .status-pill {
+  display: inline-block;
+  margin-top: 6px;
 }
