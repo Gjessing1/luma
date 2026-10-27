@@ -1,15 +1,12 @@
 import { useState } from 'react';
 import type { Playlist } from '@luma/core/playlist';
-import { setMode, suggestStartTime, timeSlots } from '@luma/core/playlist-edit';
+import { setMode, suggestStartTime } from '@luma/core/playlist-edit';
 import { maxTimedWallpapers, type Target } from '@luma/core/wallpaper';
-import { DayTimeline } from './DayTimeline';
 import { intervalLabel, intervals } from './playlist-text';
 
 interface Props {
   playlist: Playlist;
   save: (next: Playlist) => string | null;
-  thumbnail: (id: string) => string;
-  name: (id: string) => string;
 }
 const modes: [Playlist['mode'], string, string][] = [
   ['interval', 'Every…', 'Changes on a timer.'],
@@ -17,7 +14,7 @@ const modes: [Playlist['mode'], string, string][] = [
   [
     'timed',
     'Time of day',
-    'Each wallpaper has its own start time and shows until the next one starts. Set the times in the list above.',
+    'Each wallpaper has its own start time and shows until the next one starts. Set the times in the wallpaper list.',
   ],
 ];
 const targets: [Target, string][] = [
@@ -25,7 +22,7 @@ const targets: [Target, string][] = [
   ['home', 'Home'],
   ['lock', 'Lock'],
 ];
-export function ScheduleEditor({ playlist, save, thumbnail, name }: Props) {
+export function ScheduleEditor({ playlist, save }: Props) {
   const [error, setError] = useState('');
   function saveShown(next: Playlist) {
     setError(save(next) ?? '');
@@ -73,9 +70,6 @@ export function ScheduleEditor({ playlist, save, thumbnail, name }: Props) {
           times={playlist.dailyTimes}
           change={(dailyTimes) => saveShown({ ...playlist, dailyTimes })}
         />
-      )}
-      {playlist.mode === 'timed' && playlist.ids.length > 0 && (
-        <DayTimeline slots={timeSlots(playlist)} thumbnail={thumbnail} name={name} />
       )}
       {playlist.mode === 'timed' && playlist.ids.length > maxTimedWallpapers && (
         <p className="error small">

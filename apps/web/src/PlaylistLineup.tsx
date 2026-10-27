@@ -1,13 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent } from 'react';
 import type { Playlist } from '@luma/core/playlist';
-import {
-  moveInPlaylist,
-  playlistOrder,
-  removeFromPlaylist,
-  setStartTime,
-  timeSlots,
-} from '@luma/core/playlist-edit';
+import { moveInPlaylist, playlistOrder, setStartTime, timeSlots } from '@luma/core/playlist-edit';
 import type { Wallpaper } from '@luma/core/wallpaper';
 import { durationLabel } from './playlist-text';
 
@@ -17,6 +11,9 @@ interface Props {
   thumbnail: (id: string) => string;
   save: (next: Playlist) => string | null;
   open: (id: string) => void;
+  remove: (id: string) => void;
+  // The wallpaper the phone shows now, when it runs this playlist.
+  showing?: string;
 }
 interface Drag {
   from: number;
@@ -38,7 +35,8 @@ const bottomEdge = 150;
 
 // The playlist's wallpapers in the order they show. Rows are dragged by their handle (touch and
 // mouse) or moved with the arrow keys on a focused handle.
-export function PlaylistLineup({ playlist, wallpapers, thumbnail, save, open }: Props) {
+export function PlaylistLineup(props: Props) {
+  const { playlist, wallpapers, thumbnail, save, open, remove, showing } = props;
   const order = playlistOrder(playlist);
   const timed = playlist.mode === 'timed';
   const slots = timed ? timeSlots(playlist) : [];
@@ -166,12 +164,14 @@ export function PlaylistLineup({ playlist, wallpapers, thumbnail, save, open }: 
         const name = nameOf(id);
         const slot = slotFor(id);
         let detail = wallpaper ? `${wallpaper.width} × ${wallpaper.height}` : 'Remove it here';
+        // The end time is the next row's start, so the row only needs the length.
         if (timed && slot)
-          detail = `Until ${slot.end}${slot.end <= slot.start ? ' next day' : ''} · ${durationLabel(slot.minutes)}`;
+          detail = `${durationLabel(slot.minutes)}${slot.end <= slot.start ? ', past midnight' : ''}`;
+        const onPhone = showing === id;
         return (
           <li
             key={id}
-            className={`lineup-row ${drag?.from === index ? 'is-lifted' : ''}`}
+            className={`lineup-row ${drag?.from === index ? 'is-lifted' : ''} ${onPhone ? 'is-showing' : ''}`}
             style={rowStyle(index)}
           >
             <button
@@ -202,7 +202,8 @@ export function PlaylistLineup({ playlist, wallpapers, thumbnail, save, open }: 
                 value={drag ? (slot?.start ?? '') : (playlist.startTimes[id] ?? '')}
                 onChange={(event) => changeTime(id, event.target.value)}
               />
-            ) : (
+            ) : playlist.shuffle ? null : (
+              // Shuffle ignores the order, so numbering the rows would promise one.
               <span className="lineup-number">{index + 1}</span>
             )}
             <button
@@ -215,13 +216,14 @@ export function PlaylistLineup({ playlist, wallpapers, thumbnail, save, open }: 
             </button>
             <div className="lineup-info">
               <strong className={wallpaper ? '' : 'error'}>{name}</strong>
+              {onPhone && <span className="showing-badge">On phone</span>}
               <small>{detail}</small>
               {timeError?.id === id && <small className="error">{timeError.message}</small>}
             </div>
             <button
               className="lineup-remove"
               aria-label={`Remove ${name} from ${playlist.name}`}
-              onClick={() => save(removeFromPlaylist(playlist, [id]))}
+              onClick={() => remove(id)}
             >
               ×
             </button>

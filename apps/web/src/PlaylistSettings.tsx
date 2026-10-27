@@ -13,7 +13,7 @@ import {
 } from '@luma/core/playlist';
 import type { Rotation } from '@luma/core/wallpaper';
 import type { ReactNode } from 'react';
-import { destinationLabel, screensLabel } from './playlist-text';
+import { destinationLabel, scheduleLabel, screensLabel } from './playlist-text';
 import { ScheduleEditor } from './ScheduleEditor';
 import { runningRotations, wallpaperBridge, type NativeState } from './wallpaper-client';
 
@@ -21,8 +21,6 @@ interface Props {
   playlist: Playlist;
   settings: PhoneSettings;
   save: (next: Playlist) => string | null;
-  thumbnail: (id: string) => string;
-  name: (id: string) => string;
   // The playlist's wallpapers, shown between the name and the schedule.
   children: ReactNode;
   remove: () => void;
@@ -45,6 +43,7 @@ export function PlaylistSettings(props: Props) {
       (r): r is Rotation => r !== undefined && runningPlaylistId(r) !== playlist.id,
     );
   const needsUpdate = playlist.mode === 'timed' && !!bridge && !native.supportsTimedSchedule;
+  const empty = playlist.ids.length === 0;
   let startLabel = `Start on ${destinationLabel(playlist.target).toLowerCase()}`;
   if (own) startLabel = own.enabled ? 'Save & restart' : 'Save & resume';
   function nameOf(rotation: Rotation): string {
@@ -71,9 +70,28 @@ export function PlaylistSettings(props: Props) {
   return (
     <section className="settings-panel" aria-label="Playlist settings">
       <div className="section-heading">
-        <div>
+        <div className="playlist-title">
           <span className="eyebrow">PLAYLIST</span>
-          <h2>{playlist.name}</h2>
+          {/* The title is the name field, so the name isn't shown twice. */}
+          <input
+            className="title-input"
+            aria-label="Playlist name"
+            defaultValue={playlist.name}
+            key={playlist.id}
+            maxLength={60}
+            enterKeyHint="done"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur();
+            }}
+            onBlur={(e) => {
+              const name = e.target.value.trim();
+              if (!name) e.target.value = playlist.name;
+              else if (name !== playlist.name) save({ ...playlist, name });
+            }}
+          />
+          <p className="playlist-summary">
+            {destinationLabel(playlist.target)} · {scheduleLabel(playlist)}
+          </p>
         </div>
         <span className={`status-pill ${own?.enabled ? 'active' : ''}`}>
           {own
@@ -81,58 +99,30 @@ export function PlaylistSettings(props: Props) {
             : 'Not on this phone'}
         </span>
       </div>
-      {changed && (
-        <p className="change-note">
-          Changed since it started. The phone keeps the earlier version until you save.
-        </p>
-      )}
-      <label className="name-field">
-        Name
-        <input
-          aria-label="Playlist name"
-          defaultValue={playlist.name}
-          key={playlist.id}
-          maxLength={60}
-          onBlur={(e) => {
-            const name = e.target.value.trim();
-            if (!name) e.target.value = playlist.name;
-            else if (name !== playlist.name) save({ ...playlist, name });
-          }}
-        />
-      </label>
       {children}
-      <ScheduleEditor
-        playlist={playlist}
-        save={save}
-        thumbnail={props.thumbnail}
-        name={props.name}
-      />
-      {bridge && replaced.length > 0 && (
-        <p className="muted replace-note">
-          Starting stops {replaced.map((r) => `“${nameOf(r)}”`).join(' and ')} on this phone.
-        </p>
-      )}
-      <div className="button-row">
+      <ScheduleEditor playlist={playlist} save={save} />
+      {/* Sticks to the bottom of the screen while the playlist is in view, so an edit anywhere
+          in the list can be sent to the phone without scrolling to the end. */}
+      <div
+        className={`playlist-actions ${bridge && !empty ? 'is-sticky' : ''} ${changed ? 'is-changed' : ''}`}
+      >
+        <div className="action-notes">
+          {changed && <p className="change-note">Not on the phone yet. Save to update it.</p>}
+          {bridge && !empty && replaced.length > 0 && (
+            <p className="replace-note">
+              Starting stops {replaced.map((r) => `“${nameOf(r)}”`).join(' and ')} on this phone.
+            </p>
+          )}
+          {bridge && empty && <p>Add wallpapers to start this playlist.</p>}
+        </div>
         <button
           className="primary"
-          disabled={
-            busy || !bridge || !native.supportsStyles || playlist.ids.length === 0 || needsUpdate
-          }
+          disabled={busy || !bridge || !native.supportsStyles || empty || needsUpdate}
           onClick={start}
         >
           {startLabel}
         </button>
-        <button
-          className="danger"
-          disabled={busy || settings.playlists.length < 2 || (own && !native.supportsPlaylists)}
-          onClick={deletePlaylist}
-        >
-          Delete playlist
-        </button>
       </div>
-      {bridge && playlist.ids.length === 0 && (
-        <p className="muted">Add wallpapers to start this playlist.</p>
-      )}
       {needsUpdate && (
         <p className="muted">
           Install the Android update (0.1.5 or newer) to run a time of day playlist. The other
@@ -153,6 +143,16 @@ export function PlaylistSettings(props: Props) {
             : 'Open Luma on Android to apply wallpapers and run schedules. You can manage the shared library here.'}
         </p>
       </div>
+      {/* Hidden rather than disabled for the only playlist: a phone always keeps one. */}
+      {settings.playlists.length > 1 && (
+        <button
+          className="link-button danger delete-playlist"
+          disabled={busy || (own && !native.supportsPlaylists)}
+          onClick={deletePlaylist}
+        >
+          Delete playlist
+        </button>
+      )}
     </section>
   );
 }

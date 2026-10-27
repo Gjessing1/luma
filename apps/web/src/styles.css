@@ -615,17 +615,40 @@ footer > span:first-child {
 }
 .playlist-chip {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  min-width: 150px;
-  padding: 11px 14px;
+  align-items: center;
+  gap: 11px;
+  min-width: 170px;
+  max-width: 240px;
+  padding: 8px 14px 8px 8px;
   text-align: left;
   background: #191e1c;
+}
+.chip-cover {
+  flex-shrink: 0;
+  width: 30px;
+  height: 52px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #2a322d;
+}
+.chip-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.chip-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 .playlist-chip strong {
   font-size: 13px;
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .playlist-chip small {
   font-size: 10px;
@@ -639,22 +662,21 @@ footer > span:first-child {
   font-size: 10px;
   color: var(--mint);
 }
-.new-chip {
+.playlist-chip.new-chip {
+  flex-direction: column;
   justify-content: center;
-  align-items: center;
+  gap: 2px;
+  min-width: 70px;
+  padding: 8px 16px;
   color: #b1d3b9;
   border-style: dashed;
 }
-.change-note {
-  font-size: 12px;
-  color: #f0d79c;
-  background: #2e2a1d;
-  border-radius: 8px;
-  padding: 9px 13px;
-  margin: 16px 0 0;
+.new-chip span {
+  font-size: 20px;
+  line-height: 1;
 }
-.replace-note {
-  margin: 0;
+.new-chip small {
+  color: #b1d3b9;
 }
 .settings-panel {
   border: 1px solid var(--line);
@@ -1202,8 +1224,23 @@ summary {
     min-width: 0;
     width: 100%;
   }
+  /* One row that scrolls sideways, running to the screen edges. */
+  .playlist-picker {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 -20px -10px;
+    padding: 0 20px 2px;
+    scroll-padding: 0 20px;
+  }
+  /* Overflowing flex rows drop their end padding, so the last chip would touch the edge. */
+  .playlist-picker::after {
+    content: '';
+    flex: 0 0 10px;
+  }
   .playlist-chip {
-    width: calc(50% - 5px);
+    flex-shrink: 0;
+    width: auto;
   }
   .modal-backdrop {
     padding: 10px;
@@ -1561,9 +1598,128 @@ summary {
 }
 
 /* Playlist editor: name, wallpapers in show order, schedule. */
-.name-field {
-  margin: 24px 0 0;
-  max-width: 420px;
+.playlist-title {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+/* Reads as the heading, and shows it can be edited once touched. */
+.title-input {
+  display: block;
+  width: 100%;
+  max-width: 460px;
+  margin: 4px 0 0 -8px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: #f0f1f1;
+  font-size: 25px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+}
+.title-input:hover {
+  border-color: var(--line);
+}
+.title-input:focus {
+  outline: none;
+  border-color: #49694d;
+  background: #202923;
+}
+.playlist-summary {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #98a99b;
+}
+.playlist-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 12px;
+  margin: 26px -14px 0;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+}
+.playlist-actions.is-sticky {
+  position: sticky;
+  bottom: 16px;
+  z-index: 3;
+  background: #191e1cf2;
+  border-color: var(--line);
+  backdrop-filter: blur(8px);
+}
+.playlist-actions.is-changed {
+  border-color: #6b5f3a;
+  background: #2b2a1ef2;
+}
+.playlist-actions .primary {
+  flex-shrink: 0;
+}
+.action-notes {
+  flex: 1 1 160px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #98a99b;
+}
+.action-notes p {
+  margin: 0;
+}
+.action-notes:empty {
+  display: none;
+}
+.change-note {
+  color: #f0d79c;
+}
+.delete-playlist {
+  font-size: 12px;
+  font-weight: 500;
+  color: #e3aaa4;
+  text-decoration-color: #6b3f3a;
+}
+.delete-playlist:disabled {
+  opacity: 0.5;
+}
+.lineup-row.is-showing {
+  border-color: #49694d;
+}
+.showing-badge {
+  align-self: flex-start;
+  padding: 1px 6px;
+  border-radius: 20px;
+  background: #29412d;
+  color: var(--mint);
+  font-size: 10px;
+  font-weight: 600;
+}
+.undo-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #26302a;
+  font-size: 12px;
+  color: #c7d5cb;
+}
+.undo-bar span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.undo-bar .link-button {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--mint);
+  text-decoration-color: #49694d;
+}
+.lineup-section .day-timeline {
+  margin: 0 0 14px;
 }
 .lineup-section,
 .schedule-editor {
@@ -2130,7 +2286,11 @@ input.start-time::-webkit-calendar-picker-indicator {
   .lineup-row {
     gap: 8px;
   }
-  .name-field {
-    max-width: none;
+  .title-input {
+    font-size: 23px;
+  }
+  /* Clears the bottom navigation bar. */
+  .playlist-actions.is-sticky {
+    bottom: calc(75px + var(--inset-bottom));
   }
 }
