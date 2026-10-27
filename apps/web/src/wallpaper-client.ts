@@ -1,4 +1,5 @@
 import type { LiveWallpaperConfig } from '@luma/core/live-wallpaper';
+import { slotOf, type Running, type Screen } from '@luma/core/playlist';
 import {
   defaultRotation,
   migrateRotation,
@@ -8,8 +9,16 @@ import {
   type Wallpaper,
 } from '@luma/core/wallpaper';
 
+export interface NativeRotation {
+  config: Rotation;
+  nextAt?: number;
+  lastApplied?: number;
+  lastId?: string;
+  error?: string;
+}
 export interface NativeState {
   supportsStyles?: boolean;
+  supportsPlaylists?: boolean;
   supportsLiveWallpaper?: boolean;
   supportsLiveVideo?: boolean;
   supportsZoom?: boolean;
@@ -20,12 +29,27 @@ export interface NativeState {
     weatherError?: string;
     videoError?: string;
   };
+  rotations?: Partial<Record<Screen, NativeRotation>>;
+  // APK 0.1.3 and older run a single rotation and report it at the top level.
   config?: Rotation;
   nextAt?: number;
+  error?: string;
   lastApplied?: number;
   lastId?: string;
-  error?: string;
   model?: string;
+}
+export function nativeRotations(state: NativeState): Partial<Record<Screen, NativeRotation>> {
+  if (state.rotations) return state.rotations;
+  if (!state.config) return {};
+  const { config, nextAt, lastApplied, lastId, error } = state;
+  return { [slotOf(config.target)]: { config, nextAt, lastApplied, lastId, error } };
+}
+export function runningRotations(state: NativeState): Running {
+  const running: Running = {};
+  const rotations = nativeRotations(state);
+  if (rotations.home) running.home = rotations.home.config;
+  if (rotations.lock) running.lock = rotations.lock.config;
+  return running;
 }
 export interface WallpaperBridge {
   getState(): Promise<NativeState>;
@@ -33,8 +57,10 @@ export interface WallpaperBridge {
   openLiveWallpaperPreview(): Promise<void>;
   configure(options: { config: Rotation }): Promise<NativeState>;
   apply(options: { config: Rotation }): Promise<NativeState>;
-  next(): Promise<NativeState>;
-  pause(): Promise<NativeState>;
+  // Shells before 0.1.4 ignore the slot and act on their single rotation.
+  next(options: { slot: Screen }): Promise<NativeState>;
+  pause(options: { slot: Screen }): Promise<NativeState>;
+  stop(options: { slot: Screen }): Promise<NativeState>;
   exportImage(options: { id: string; config: Rotation }): Promise<void>;
   openWallpaperSettings(): Promise<void>;
 }

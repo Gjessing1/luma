@@ -85,3 +85,14 @@ components so Set wallpaper binds a fresh one. Android rebinds asynchronously: p
 Trap (2026-10-27): the live picker renders Set wallpaper before its preview engine has
 connected, with `enabled="false"`; tapping it then does nothing and the destination
 dialog never opens. `nativeButton` skips disabled nodes and retries.
+
+Trap (2026-10-27): the debug origin `http://10.0.2.2:3097` is not a secure context, so
+`crypto.randomUUID` is undefined there and a click handler using it throws without a page
+error. Production (HTTPS) hides this; use `crypto.getRandomValues` in web code.
+
+Trap (2026-10-27): an aborted live run leaves a restored preview open; the next run must
+close it before clicking the Library. `live-wallpaper.mjs` copies the video catalog from the
+disposable backend, so copy `live-wallpapers/` into its data dir (read-only source).
+
+The harnesses need `playwright-core` and `sharp`; install them in a scratch directory and
+run copies of the scripts from there.

@@ -101,14 +101,22 @@ try {
   assert.equal(new URL(page.url()).origin, origin);
   const original = await state();
   assert.equal(original.supportsLiveWallpaper, true);
-  assert.ok(original.config.ids.length, 'Run webview.mjs first to cache a disposable playlist');
+  assert.ok(
+    original.rotations.home?.config.ids.length,
+    'Run webview.mjs first to cache a disposable playlist',
+  );
   await page.evaluate(async () => {
     const plugin = window.Capacitor.Plugins.Wallpaper;
     const state = await plugin.getState();
-    await plugin.configure({ config: { ...state.config, target: 'home', enabled: true } });
+    await plugin.configure({
+      config: { ...state.rotations.home.config, target: 'home', enabled: true },
+    });
   });
   await delay(2000);
   await connect();
+  // An earlier aborted run can leave a restored preview open over the Library.
+  if (await page.getByRole('dialog').count())
+    await page.getByRole('button', { name: 'Close preview' }).click();
   await page.getByRole('button', { name: 'Library', exact: true }).click();
   await page.locator('.filter-tabs button', { hasText: 'Live' }).click();
   // Generated scenes are folded beneath the video collection.
@@ -123,7 +131,11 @@ try {
   await screenshot('live-android-preview');
   shell('input', 'keyevent', '4');
   await app();
-  assert.equal((await state()).config.enabled, true, 'Cancelling preview preserves rotation');
+  assert.equal(
+    (await state()).rotations.home.config.enabled,
+    true,
+    'Cancelling preview preserves rotation',
+  );
   await page.getByRole('button', { name: 'Save & open Android preview', exact: true }).click();
   assert.equal(await nativeButton(/^Set wallpaper$/i), true, 'Android must offer Set wallpaper');
   // AOSP versions differ: the picker may offer Home, Both or apply immediately.
@@ -161,8 +173,12 @@ try {
   await app();
   let current = await state();
   assert.equal(current.live.active, true);
-  assert.equal(current.config.enabled, false, 'Activating live wallpaper pauses home rotation');
-  assert.equal(current.nextAt, undefined);
+  assert.equal(
+    current.rotations.home.config.enabled,
+    false,
+    'Activating live wallpaper pauses home rotation',
+  );
+  assert.equal(current.rotations.home.nextAt, undefined);
   const settings = { ...current.live.config, motion: false };
   await save(settings);
   await home();
@@ -185,7 +201,10 @@ try {
   // uiautomator cannot dump a window that never idles, so pick the destination while the
   // preview shows a still frame and start motion afterwards.
   await page.getByLabel('Animate wallpaper', { exact: true }).uncheck();
-  await page.getByRole('heading', { name: 'Sea nettles', exact: true }).waitFor();
+  await page
+    .getByLabel('Live wallpaper preview')
+    .getByRole('heading', { name: 'Sea nettles', exact: true })
+    .waitFor();
   assert.equal(
     await page.getByRole('button', { name: 'Save live wallpaper', exact: true }).count(),
     0,
@@ -292,7 +311,15 @@ try {
   await page.evaluate(async () => {
     const plugin = window.Capacitor.Plugins.Wallpaper;
     const state = await plugin.getState();
-    await plugin.configure({ config: { ...state.config, target: 'lock', enabled: true } });
+    await plugin.configure({
+      config: {
+        ...state.rotations.home.config,
+        target: 'lock',
+        playlistId: 'live-lock',
+        name: 'Live lock',
+        enabled: true,
+      },
+    });
   });
   await delay(1500);
   await connect();
@@ -302,12 +329,13 @@ try {
     true,
     'Lock-only rotation must preserve the live home wallpaper',
   );
-  assert.equal(current.config.enabled, true);
-  await page.evaluate(() => window.Capacitor.Plugins.Wallpaper.next());
+  assert.equal(current.rotations.lock.config.enabled, true);
+  assert.equal(current.rotations.home.config.enabled, false, 'The paused home playlist stays');
+  await page.evaluate(() => window.Capacitor.Plugins.Wallpaper.next({ slot: 'lock' }));
   await delay(1000);
   await connect();
   assert.equal((await state()).live.active, true);
-  await page.evaluate(() => window.Capacitor.Plugins.Wallpaper.pause());
+  await page.evaluate(() => window.Capacitor.Plugins.Wallpaper.pause({ slot: 'lock' }));
   // Hidden engine must stop posting frames (inspectable through dumpsys wallpaper).
   // Either Luma component may be running: each Android preview alternates between them.
   const hidden = shell('dumpsys', 'activity', 'service', 'io.gjessing.luma');
@@ -317,7 +345,12 @@ try {
     const plugin = window.Capacitor.Plugins.Wallpaper;
     const state = await plugin.getState();
     await plugin.apply({
-      config: { ...state.config, target: 'home', enabled: false, ids: [state.config.ids[0]] },
+      config: {
+        ...state.rotations.lock.config,
+        target: 'home',
+        enabled: false,
+        ids: [state.rotations.lock.config.ids[0]],
+      },
     });
   });
   await delay(1500);

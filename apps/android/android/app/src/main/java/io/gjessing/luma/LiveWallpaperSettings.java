@@ -68,13 +68,12 @@ final class LiveWallpaperSettings {
         return state;
     }
 
+    /** Photo rotation on the home screen would replace the live wallpaper; lock-only rotation can continue. */
     static boolean pauseHomeRotation(Context context) throws Exception {
         synchronized (WallpaperRotation.LOCK) {
-            JSONObject config = WallpaperRotation.config(context);
-            if (!active(context) || config == null || !config.optBoolean("enabled") || config.optString("target").equals("lock")) return false;
-            config.put("enabled", false);
-            WallpaperRotation.prefs(context).edit().putString("config", config.toString()).commit();
-            WallpaperRotation.schedule(context);
+            JSONObject config = WallpaperRotation.config(context, "home");
+            if (!active(context) || config == null || !config.optBoolean("enabled")) return false;
+            WallpaperRotation.pause(context, "home");
             return true;
         }
     }

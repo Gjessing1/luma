@@ -17,6 +17,10 @@
       "types": "./dist/wallpaper.d.ts",
       "default": "./dist/wallpaper.js"
     },
+    "./playlist": {
+      "types": "./dist/playlist.d.ts",
+      "default": "./dist/playlist.js"
+    },
     "./live-wallpaper": {
       "types": "./dist/live-wallpaper.d.ts",
       "default": "./dist/live-wallpaper.js"

@@ -560,16 +560,117 @@ footer > span:first-child {
 .error {
   color: #ffb7ad;
 }
-.playlist-note {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 11px;
-  color: #9caf9f;
-  margin-bottom: 20px;
+.phone-status .profile-select {
+  min-width: 190px;
 }
-.playlist-note button {
+.screen-rows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 22px;
+}
+.screen-row {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #1e2522;
+  padding: 16px 18px;
+}
+.screen-row .button-row {
+  margin: 10px 0 0;
+}
+.screen-row p {
+  margin: 6px 0 0;
+}
+.screen-name {
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: #a2b4a6;
+}
+.screen-playlist {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+}
+.link-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: #eef2ef;
+  font-size: 17px;
+  font-weight: 550;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: #4d5d52;
+  text-underline-offset: 4px;
+}
+.playlist-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 -10px;
+}
+.playlist-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 150px;
+  padding: 11px 14px;
+  text-align: left;
+  background: #191e1c;
+}
+.playlist-chip strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.playlist-chip small {
+  font-size: 10px;
+  color: #98a99b;
+}
+.playlist-chip.chip-active {
+  border-color: var(--mint);
+  background: #242f29;
+}
+.chip-status {
+  font-size: 10px;
+  color: var(--mint);
+}
+.new-chip {
+  justify-content: center;
+  align-items: center;
+  color: #b1d3b9;
+  border-style: dashed;
+}
+.change-note {
+  font-size: 12px;
+  color: #f0d79c;
+  background: #2e2a1d;
+  border-radius: 8px;
+  padding: 9px 13px;
+  margin: 16px 0 0;
+}
+.replace-note {
+  margin: 0;
+}
+.playlist-images-heading {
+  font-size: 17px;
+  font-weight: 500;
+  margin: 34px 0 -10px;
+}
+.adding-to {
+  flex-direction: row;
+  align-items: center;
+  margin-left: auto;
+  white-space: nowrap;
+}
+.adding-to select {
+  padding: 8px 10px;
   font-size: 11px;
+  max-width: 190px;
 }
 .settings-panel {
   border: 1px solid var(--line);
@@ -1119,10 +1220,20 @@ summary {
   .button-row button {
     min-height: 40px;
   }
-  .playlist-note {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 10px;
+  .screen-rows {
+    grid-template-columns: 1fr;
+  }
+  .phone-status .profile-select,
+  .playlist-chip {
+    min-width: 0;
+    width: 100%;
+  }
+  .playlist-chip {
+    width: calc(50% - 5px);
+  }
+  .adding-to {
+    margin-left: 0;
+    justify-content: space-between;
   }
   .modal-backdrop {
     padding: 10px;

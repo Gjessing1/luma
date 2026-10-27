@@ -59,6 +59,9 @@ export const originalStyle: WallpaperStyle = {
   effects: { dim: 0, blur: 0, grayscale: false, warmth: 0 },
 };
 export interface Rotation extends WallpaperStyle {
+  // Which saved playlist a running rotation came from; absent before saved playlists existed.
+  playlistId?: string;
+  name?: string;
   styles?: Record<string, WallpaperStyle>;
   ids: string[];
   device: Device;
@@ -93,6 +96,10 @@ export function validateRotation(rotation: Rotation): void {
     !rotation.ids.every(isWallpaperId)
   )
     throw new Error('Choose up to 200 wallpapers');
+  if (rotation.playlistId !== undefined && !isPlaylistId(rotation.playlistId))
+    throw new Error('Invalid playlist');
+  if (rotation.name !== undefined && !isPlaylistName(rotation.name))
+    throw new Error('Name the playlist (up to 60 characters)');
   if (!(rotation.device in devices)) throw new Error('Unknown Galaxy profile');
   if (!['home', 'lock', 'both'].includes(rotation.target)) throw new Error('Invalid destination');
   if (!['interval', 'daily'].includes(rotation.mode)) throw new Error('Invalid schedule');
@@ -126,6 +133,12 @@ export function validateRotation(rotation: Rotation): void {
     throw new Error('Invalid toggle');
   if (rotation.enabled && rotation.ids.length === 0)
     throw new Error('Add wallpapers to the playlist first');
+}
+export function isPlaylistId(id: unknown): id is string {
+  return typeof id === 'string' && /^[a-z0-9-]{1,64}$/.test(id);
+}
+export function isPlaylistName(name: unknown): name is string {
+  return typeof name === 'string' && name.trim().length > 0 && name.length <= 60;
 }
 export function validateStyle(style: WallpaperStyle): void {
   if (!style || !style.effects) throw new Error('Invalid wallpaper adjustments');

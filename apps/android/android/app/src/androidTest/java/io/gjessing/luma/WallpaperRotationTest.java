@@ -55,34 +55,17 @@ public class WallpaperRotationTest {
         try (FileOutputStream output = new FileOutputStream(file)) { bitmap.compress(Bitmap.CompressFormat.JPEG, 85, output); }
         finally { bitmap.recycle(); }
     }
-    @Test public void rotatesOfflineThroughTheRealReceiverAndPauses() throws Exception {
+    private interface PrefsTest { void run(Context context, File directory) throws Exception; }
+    /** Runs against this app's real preferences and restores them, with its own cached files. */
+    private void withPrefs(PrefsTest test) throws Exception {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         Map<String, ?> original = WallpaperRotation.prefs(context).getAll();
         File directory = new File(WallpaperRotation.directory(context), "instrumentation"); directory.mkdirs();
         try {
             image(new File(directory, FIRST + ".jpg"), Color.rgb(30, 100, 75));
             image(new File(directory, SECOND + ".jpg"), Color.rgb(80, 40, 110));
-            WallpaperRotation.prefs(context).edit().clear().putString("config", config().toString()).putString("generation", "instrumentation").putInt("index", -1).commit();
-            synchronized (WallpaperRotation.LOCK) { WallpaperRotation.advance(context); WallpaperRotation.schedule(context); }
-            assertEquals(FIRST, WallpaperRotation.state(context).getString("lastId"));
-            assertTrue(WallpaperRotation.state(context).getLong("nextAt") > System.currentTimeMillis());
-            context.sendBroadcast(new Intent(context, WallpaperAlarmReceiver.class).setAction("io.gjessing.luma.ROTATE"));
-            long deadline = System.currentTimeMillis() + 10000;
-            while (!SECOND.equals(WallpaperRotation.prefs(context).getString("lastId", "")) && System.currentTimeMillis() < deadline) Thread.sleep(100);
-            assertEquals(SECOND, WallpaperRotation.state(context).getString("lastId"));
-            WallpaperManager manager = WallpaperManager.getInstance(context);
-            WallpaperRotation.applyFile(context, new File(directory, FIRST + ".jpg"), "lock", FIRST);
-            int lockId = manager.getWallpaperId(WallpaperManager.FLAG_LOCK);
-            WallpaperRotation.applyFile(context, new File(directory, SECOND + ".jpg"), "home", SECOND);
-            assertEquals("Home-only apply preserves lock wallpaper", lockId, manager.getWallpaperId(WallpaperManager.FLAG_LOCK));
-            int homeId = manager.getWallpaperId(WallpaperManager.FLAG_SYSTEM);
-            WallpaperRotation.applyFile(context, new File(directory, FIRST + ".jpg"), "lock", FIRST);
-            assertEquals("Lock-only apply preserves home wallpaper", homeId, manager.getWallpaperId(WallpaperManager.FLAG_SYSTEM));
-            JSONObject paused = config().put("enabled", false);
-            WallpaperRotation.prefs(context).edit().putString("config", paused.toString()).commit();
-            WallpaperRotation.schedule(context);
-            assertFalse(WallpaperRotation.state(context).has("nextAt"));
-            assertFalse(WallpaperRotation.state(context).has("error"));
+            WallpaperRotation.prefs(context).edit().clear().commit();
+            test.run(context, directory);
         } finally {
             android.content.SharedPreferences.Editor editor = WallpaperRotation.prefs(context).edit().clear();
             for (Map.Entry<String, ?> entry : original.entrySet()) {
@@ -92,8 +75,73 @@ public class WallpaperRotationTest {
                 else if (value instanceof Integer) editor.putInt(entry.getKey(), (Integer) value);
                 else if (value instanceof Boolean) editor.putBoolean(entry.getKey(), (Boolean) value);
             }
-            editor.commit(); WallpaperRotation.schedule(context);
+            editor.commit(); WallpaperRotation.scheduleAll(context);
             for (File file : directory.listFiles()) file.delete(); directory.delete();
         }
+    }
+    private void awaitLastId(Context context, String slot, String id) throws Exception {
+        long deadline = System.currentTimeMillis() + 10000;
+        while (!id.equals(WallpaperRotation.prefs(context).getString(WallpaperRotation.key("lastId", slot), "")) && System.currentTimeMillis() < deadline) Thread.sleep(100);
+        assertEquals(id, WallpaperRotation.prefs(context).getString(WallpaperRotation.key("lastId", slot), ""));
+    }
+    @Test public void rotatesOfflineThroughTheRealReceiverAndPauses() throws Exception {
+        withPrefs((context, directory) -> {
+            // A 0.1.3 rotation and its alarm (no slot extra) migrate into the home slot.
+            WallpaperRotation.prefs(context).edit().putString("config", config().toString()).putString("generation", "instrumentation").putInt("index", -1).commit();
+            synchronized (WallpaperRotation.LOCK) { WallpaperRotation.advance(context, "home"); }
+            assertFalse(WallpaperRotation.prefs(context).contains("config"));
+            JSONObject home = WallpaperRotation.state(context).getJSONObject("rotations").getJSONObject("home");
+            assertEquals(FIRST, home.getString("lastId"));
+            assertTrue(home.getLong("nextAt") > System.currentTimeMillis());
+            context.sendBroadcast(new Intent(context, WallpaperAlarmReceiver.class).setAction(WallpaperRotation.ROTATE));
+            awaitLastId(context, "home", SECOND);
+            WallpaperManager manager = WallpaperManager.getInstance(context);
+            WallpaperRotation.applyFile(context, new File(directory, FIRST + ".jpg"), "lock", FIRST);
+            int lockId = manager.getWallpaperId(WallpaperManager.FLAG_LOCK);
+            WallpaperRotation.applyFile(context, new File(directory, SECOND + ".jpg"), "home", SECOND);
+            assertEquals("Home-only apply preserves lock wallpaper", lockId, manager.getWallpaperId(WallpaperManager.FLAG_LOCK));
+            int homeId = manager.getWallpaperId(WallpaperManager.FLAG_SYSTEM);
+            WallpaperRotation.applyFile(context, new File(directory, FIRST + ".jpg"), "lock", FIRST);
+            assertEquals("Lock-only apply preserves home wallpaper", homeId, manager.getWallpaperId(WallpaperManager.FLAG_SYSTEM));
+            synchronized (WallpaperRotation.LOCK) { WallpaperRotation.pause(context, "home"); }
+            home = WallpaperRotation.state(context).getJSONObject("rotations").getJSONObject("home");
+            assertFalse(home.getJSONObject("config").getBoolean("enabled"));
+            assertFalse(home.has("nextAt"));
+            assertFalse(home.has("error"));
+        });
+    }
+    @Test public void runsSeparateHomeAndLockPlaylists() throws Exception {
+        withPrefs((context, directory) -> {
+            JSONObject home = config().put("target", "home").put("playlistId", "desert").put("name", "Desert");
+            JSONObject lock = config().put("target", "lock").put("playlistId", "seasons").put("name", "Seasons").put("mode", "daily");
+            WallpaperRotation.validate(home);
+            synchronized (WallpaperRotation.LOCK) {
+                WallpaperRotation.install(context, home, "instrumentation", FIRST);
+                WallpaperRotation.install(context, lock, "instrumentation", FIRST);
+            }
+            JSONObject rotations = WallpaperRotation.state(context).getJSONObject("rotations");
+            assertEquals("desert", rotations.getJSONObject("home").getJSONObject("config").getString("playlistId"));
+            assertEquals("seasons", rotations.getJSONObject("lock").getJSONObject("config").getString("playlistId"));
+            long homeNext = rotations.getJSONObject("home").getLong("nextAt");
+            assertNotEquals(homeNext, rotations.getJSONObject("lock").getLong("nextAt"));
+            // The lock alarm advances only the lock playlist and leaves the home schedule alone.
+            context.sendBroadcast(new Intent(context, WallpaperAlarmReceiver.class).setAction(WallpaperRotation.ROTATE).putExtra("slot", "lock"));
+            awaitLastId(context, "lock", SECOND);
+            rotations = WallpaperRotation.state(context).getJSONObject("rotations");
+            assertEquals(FIRST, rotations.getJSONObject("home").getString("lastId"));
+            assertEquals(homeNext, rotations.getJSONObject("home").getLong("nextAt"));
+            synchronized (WallpaperRotation.LOCK) { WallpaperRotation.pause(context, "lock"); }
+            assertTrue(WallpaperRotation.config(context, "home").getBoolean("enabled"));
+            // A Home & lock playlist takes both screens; a lock playlist then stops it entirely.
+            synchronized (WallpaperRotation.LOCK) { WallpaperRotation.install(context, config().put("playlistId", "both"), "instrumentation", FIRST); }
+            assertNull(WallpaperRotation.config(context, "lock"));
+            assertEquals("both", WallpaperRotation.config(context, "home").getString("playlistId"));
+            synchronized (WallpaperRotation.LOCK) { WallpaperRotation.install(context, lock, "instrumentation", FIRST); }
+            assertNull(WallpaperRotation.config(context, "home"));
+            assertEquals(java.util.Collections.singleton("instrumentation"), WallpaperRotation.generations(context));
+        });
+        JSONObject invalid = config().put("playlistId", "Not valid");
+        try { WallpaperRotation.validate(invalid); fail("Must reject invalid playlist IDs"); }
+        catch (Exception expected) { assertTrue(expected.getMessage().contains("playlist")); }
     }
 }

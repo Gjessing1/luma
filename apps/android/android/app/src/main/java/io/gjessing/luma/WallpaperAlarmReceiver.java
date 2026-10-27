@@ -13,13 +13,18 @@ public class WallpaperAlarmReceiver extends BroadcastReceiver {
         PendingResult pending = goAsync();
         EXECUTOR.execute(() -> {
             synchronized (WallpaperRotation.LOCK) {
+                String slot = intent.getStringExtra("slot");
                 try {
-                    // Schedule first: a corrupt image must not silently stop all future rotations.
-                    org.json.JSONObject config = WallpaperRotation.config(context);
-                    WallpaperRotation.schedule(context);
-                    if ("io.gjessing.luma.ROTATE".equals(intent.getAction()) && config != null && config.optBoolean("enabled")) WallpaperRotation.advance(context);
+                    if (WallpaperRotation.ROTATE.equals(intent.getAction())) {
+                        // Alarms set by 0.1.3 carry no slot; its single rotation became the home slot's.
+                        slot = slot == null ? "home" : WallpaperRotation.checkedSlot(slot);
+                        // Schedule first: a corrupt image must not silently stop all future rotations.
+                        org.json.JSONObject config = WallpaperRotation.config(context, slot);
+                        WallpaperRotation.schedule(context, slot);
+                        if (config != null && config.optBoolean("enabled")) WallpaperRotation.advance(context, slot);
+                    } else WallpaperRotation.scheduleAll(context);
                 } catch (Exception error) {
-                    WallpaperRotation.prefs(context).edit().putString("error", error.getMessage()).apply();
+                    WallpaperRotation.prefs(context).edit().putString(WallpaperRotation.key("error", slot == null ? "home" : slot), error.getMessage()).apply();
                     Log.e("Luma", "Wallpaper rotation failed", error);
                 } finally { pending.finish(); }
             }

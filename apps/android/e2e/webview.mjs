@@ -44,25 +44,50 @@ async function action(operation) {
 async function state() {
   return page.evaluate(() => window.Capacitor.Plugins.Wallpaper.getState());
 }
+async function generations() {
+  return execFileSync(adb, ['shell', 'run-as', 'io.gjessing.luma', 'ls', 'files/wallpapers'], {
+    encoding: 'utf8',
+  })
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+async function openPlaylists() {
+  await page.getByRole('button', { name: 'Playlists', exact: true }).click();
+  await page.getByRole('heading', { name: 'Now showing' }).waitFor();
+}
+async function selectPlaylist(name) {
+  await page
+    .getByRole('group', { name: 'Saved playlists' })
+    .getByRole('button', { name: new RegExp(`^${name}`) })
+    .click();
+}
+async function addFromLibrary(playlist, names) {
+  await page.getByRole('button', { name: 'Library', exact: true }).click();
+  await page.getByLabel('Add to playlist').selectOption({ label: playlist });
+  for (const name of names) {
+    const add = page.getByRole('button', { name: `Add to ${playlist}: ${name}`, exact: true });
+    if (await add.count()) await add.click();
+  }
+}
 try {
   await reconnect();
   assert.equal(new URL(page.url()).hostname, '10.0.2.2', 'Never run this against production');
+  // A rotation saved by 0.1.3 moves into the slot for its screen.
+  let current = await state();
+  console.log('Initial native rotations:', Object.keys(current.rotations));
+  assert.equal(current.supportsPlaylists, true);
+  assert.equal(current.config, undefined);
+  await page.evaluate(async () => {
+    const plugin = window.Capacitor.Plugins.Wallpaper;
+    for (const slot of ['home', 'lock']) await plugin.stop({ slot });
+    for (const key of ['luma.phone', 'luma.rotation']) localStorage.removeItem(key);
+  });
   await page.reload();
   await page.locator('main').waitFor();
   if (await page.getByRole('dialog').count())
     await page.getByRole('button', { name: 'Close preview' }).click();
-  await page.getByRole('button', { name: 'Library', exact: true }).click();
-  await page.getByRole('button', { name: 'Preview Emerald tide', exact: true }).waitFor();
-  await page.evaluate(() => {
-    const config = JSON.parse(localStorage.getItem('luma.rotation'));
-    config.ids = [];
-    localStorage.setItem('luma.rotation', JSON.stringify(config));
-  });
-  await page.reload();
-  for (const name of ['Emerald tide', 'Blue hour']) {
-    const add = page.getByRole('button', { name: `Add to playlist: ${name}`, exact: true });
-    if (await add.count()) await add.click();
-  }
+  await addFromLibrary('My playlist', ['Emerald tide', 'Blue hour']);
   await page.getByRole('button', { name: 'Preview Emerald tide', exact: true }).click();
   for (const [panel, action] of [
     ['◐ Style', () => page.getByRole('button', { name: 'AMOLED night', exact: true }).click()],
@@ -76,33 +101,29 @@ try {
   await page.getByLabel('Horizontal position').fill('75');
   execFileSync(adb, ['shell', 'input', 'keyevent', '4']);
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
-  await page.getByRole('button', { name: 'My playlist', exact: true }).click();
-  await page.getByRole('button', { name: 'Schedule', exact: true }).click();
-  execFileSync(adb, ['shell', 'input', 'keyevent', '4']);
-  await page.getByRole('heading', { name: 'Playlist', exact: true }).waitFor();
+  await openPlaylists();
   execFileSync(adb, ['shell', 'input', 'keyevent', '4']);
   await page.getByRole('heading', { name: 'Library', exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Schedule', exact: true }).click();
+  await openPlaylists();
   await page.getByLabel('Galaxy profile').selectOption('s25');
+  await page.getByLabel('Show on').selectOption('home');
   await page.getByLabel('Change wallpaper').selectOption('interval');
   await page.getByLabel('Every').selectOption('15');
-  await action(() => page.getByRole('button', { name: 'Save & start rotation' }).click());
-  let current = await state();
-  assert.equal(current.config.ids.length, 2);
-  assert.equal(current.config.device, 's25');
-  assert.ok(Object.values(current.config.styles).some((style) => style.zoom === 150));
-  assert.equal(current.config.enabled, true);
-  assert.ok(current.nextAt > Date.now());
-  assert.equal(await page.getByRole('button', { name: 'Schedule', exact: true }).count(), 1);
-  console.log('Android Back, playlist save and per-image settings passed.');
-  const generation = execFileSync(
-    adb,
-    ['shell', 'run-as', 'io.gjessing.luma', 'ls', 'files/wallpapers'],
-    { encoding: 'utf8' },
-  ).trim();
+  await action(() => page.getByRole('button', { name: 'Start on home screen' }).click());
+  current = await state();
+  let home = current.rotations.home;
+  assert.equal(home.config.ids.length, 2);
+  assert.equal(home.config.device, 's25');
+  assert.equal(home.config.name, 'My playlist');
+  assert.ok(Object.values(home.config.styles).some((style) => style.zoom === 150));
+  assert.equal(home.config.enabled, true);
+  assert.ok(home.nextAt > Date.now());
+  assert.equal(current.rotations.lock, undefined);
+  console.log('Android Back, home playlist start and per-image settings passed.');
+  const [generation] = await generations();
   assert.match(generation, /^[0-9a-f-]+$/);
-  for (const id of current.config.ids) {
-    const style = current.config.styles[id] ?? {
+  for (const id of home.config.ids) {
+    const style = home.config.styles[id] ?? {
       focalX: 50,
       focalY: 50,
       effects: { dim: 0, blur: 0, warmth: 0, grayscale: false },
@@ -134,16 +155,45 @@ try {
     );
   }
   console.log('Native cached JPEGs match each wallpaper’s adjusted render.');
-  const initial = current.lastId;
-  await action(() => page.evaluate(() => window.Capacitor.Plugins.Wallpaper.next()));
+
+  // A second, lock-only playlist runs beside the home playlist.
+  await page.getByRole('button', { name: '+ New playlist' }).click();
+  await page.getByLabel('Playlist name').fill('Night lock');
+  await page.getByLabel('Playlist name').blur();
+  await page.getByLabel('Show on').selectOption('lock');
+  await page.getByLabel('Change wallpaper').selectOption('daily');
+  await addFromLibrary('Night lock', ['Moon garden', 'Lavender drift']);
+  await openPlaylists();
+  await page.getByRole('heading', { name: 'Night lock', exact: true }).waitFor();
+  assert.equal(await page.locator('.replace-note').count(), 0);
+  await action(() => page.getByRole('button', { name: 'Start on lock screen' }).click());
   current = await state();
-  assert.notEqual(current.lastId, initial);
+  assert.equal(current.rotations.lock.config.name, 'Night lock');
+  assert.equal(current.rotations.lock.config.mode, 'daily');
+  assert.equal(current.rotations.home.config.name, 'My playlist');
+  assert.equal(current.rotations.home.config.enabled, true);
+  assert.equal((await generations()).length, 2, 'Each screen keeps its own cache');
+  await openPlaylists();
+  assert.match(await page.locator('[data-screen=home]').innerText(), /My playlist\s*Running/);
+  assert.match(await page.locator('[data-screen=lock]').innerText(), /Night lock\s*Running/);
+  await mkdir('test-results', { recursive: true });
+  await page.screenshot({ path: 'test-results/android-playlists.png', fullPage: true });
+  console.log('Home and lock playlists run side by side.');
+
+  const initial = current.rotations.home.lastId;
+  const lockBefore = current.rotations.lock;
+  await action(() =>
+    page.evaluate(() => window.Capacitor.Plugins.Wallpaper.next({ slot: 'home' })),
+  );
+  current = await state();
+  assert.notEqual(current.rotations.home.lastId, initial);
+  assert.equal(current.rotations.lock.lastId, lockBefore.lastId, 'Next on home leaves lock alone');
   const failed = await page.evaluate(async () => {
     const plugin = window.Capacitor.Plugins.Wallpaper;
     const before = await plugin.getState();
     try {
       await plugin.configure({
-        config: { ...before.config, ids: ['00000000-0000-0000-0000-000000000000'] },
+        config: { ...before.rotations.lock.config, ids: ['00000000-0000-0000-0000-000000000000'] },
       });
       return false;
     } catch {
@@ -151,20 +201,22 @@ try {
     }
   });
   assert.equal(failed, true);
-  assert.deepEqual((await state()).config, current.config);
+  assert.deepEqual((await state()).rotations.lock.config, lockBefore.config);
+  assert.equal((await generations()).length, 2, 'A failed download leaves both caches');
   await page.evaluate(async () => {
     const plugin = window.Capacitor.Plugins.Wallpaper;
     const current = await plugin.getState();
-    await plugin.exportImage({ id: current.config.ids[0], config: current.config });
+    const config = current.rotations.home.config;
+    await plugin.exportImage({ id: config.ids[0], config });
   });
-  await page.getByRole('button', { name: 'Schedule', exact: true }).click();
-  await page.getByRole('button', { name: 'Pause', exact: true }).click();
-  await page.getByText('Paused', { exact: true }).waitFor();
+  await openPlaylists();
+  await page.locator('[data-screen=home]').getByRole('button', { name: 'Pause' }).click();
+  await page.locator('[data-screen=home]').getByText('Paused', { exact: true }).waitFor();
   current = await state();
-  assert.equal(current.config.enabled, false);
-  assert.equal(current.nextAt, undefined);
-  await mkdir('test-results', { recursive: true });
-  await page.screenshot({ path: 'test-results/android-schedule.png' });
+  assert.equal(current.rotations.home.config.enabled, false);
+  assert.equal(current.rotations.home.nextAt, undefined);
+  assert.equal(current.rotations.lock.config.enabled, true, 'Pausing home keeps lock running');
+
   await page.getByRole('button', { name: 'Library', exact: true }).click();
   await page.getByRole('button', { name: 'Preview Emerald tide', exact: true }).click();
   const style = page.getByRole('button', { name: '◐ Style', exact: true });
@@ -177,17 +229,34 @@ try {
     await page.getByRole('dialog').waitFor();
   }
   current = await state();
-  assert.equal(current.config.enabled, false);
+  assert.equal(current.rotations.home.config.enabled, false);
+  assert.equal(current.rotations.lock.config.enabled, true, 'One-off applies keep playlists');
   assert.ok(current.lastApplied);
   await page.getByRole('dialog').waitFor();
   await page.screenshot({ path: 'test-results/android-preview.png' });
   await page.getByRole('button', { name: 'Close preview' }).click();
+
+  // Making the home playlist Home & lock stops the lock playlist.
   await page.reload();
-  await page.getByRole('button', { name: 'Schedule', exact: true }).click();
-  await page.getByText('Paused', { exact: true }).waitFor();
+  await openPlaylists();
   assert.equal(await page.getByLabel('Galaxy profile').inputValue(), 's25');
+  await selectPlaylist('My playlist');
+  await page.getByLabel('Show on').selectOption('both');
+  await page.getByText('Changed since it started').waitFor();
+  assert.match(await page.locator('.replace-note').innerText(), /stops “Night lock”/);
+  await action(() => page.getByRole('button', { name: 'Save & resume' }).click());
+  current = await state();
+  assert.equal(current.rotations.home.config.target, 'both');
+  assert.equal(current.rotations.lock, undefined);
+  assert.equal((await generations()).length, 1, 'The stopped playlist’s cache is removed');
+  await openPlaylists();
+  assert.match(
+    await page.locator('[data-screen=lock]').innerText(),
+    /Same playlist as the home screen/,
+  );
+  await page.evaluate(() => window.Capacitor.Plugins.Wallpaper.pause({ slot: 'home' }));
   console.log(
-    'Android WebView passed: native sync/apply/next, failed-sync rollback, Gallery export, pause and state restored after wallpaper-triggered Activity recreation.',
+    'Android WebView passed: 0.1.3 migration, home and lock playlists side by side, per-slot next/pause, failed-sync rollback, Gallery export, one-off applies, Home & lock replacement and state restored after Activity recreation.',
   );
 } finally {
   await browser.close();

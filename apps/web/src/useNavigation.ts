@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-type Tab = 'library' | 'playlist' | 'schedule';
+type Tab = 'library' | 'playlist';
 interface Screen {
   tab: Tab;
   selected: string | null;
@@ -8,15 +8,15 @@ interface Screen {
 function restoredScreen(): Screen {
   const saved = localStorage.getItem('luma.tab');
   return {
-    tab: saved === 'playlist' || saved === 'schedule' ? saved : 'library',
+    tab: saved === 'playlist' || saved === 'schedule' ? 'playlist' : 'library',
     selected: localStorage.getItem('luma.preview'),
   };
 }
-// History from before live wallpapers moved into the Library may still name a 'live' tab.
-function knownScreen(screen: Screen): Screen {
-  return screen.tab === 'playlist' || screen.tab === 'schedule'
-    ? screen
-    : { ...screen, tab: 'library' };
+// Older history entries may name a 'live' tab (now in the Library) or a 'schedule' tab (now
+// part of each playlist).
+function knownScreen(screen: { tab: string; selected: string | null }): Screen {
+  if (screen.tab === 'playlist' || screen.tab === 'schedule') return { ...screen, tab: 'playlist' };
+  return { ...screen, tab: 'library' };
 }
 export function useNavigation() {
   const [screen, setScreen] = useState<Screen>(() =>

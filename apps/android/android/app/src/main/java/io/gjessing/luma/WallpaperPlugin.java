@@ -46,14 +46,27 @@ public class WallpaperPlugin extends Plugin {
         });
     }
     @PluginMethod public void getState(PluginCall call) { execute(call, () -> {}); }
+    /** No slot pauses every screen, as the single rotation did before saved playlists. */
     @PluginMethod public void pause(PluginCall call) { execute(call, () -> {
+        String slot = call.getString("slot");
         synchronized (WallpaperRotation.LOCK) {
-        JSONObject config = WallpaperRotation.config(getContext());
-        if (config != null) { config.put("enabled", false); WallpaperRotation.prefs(getContext()).edit().putString("config", config.toString()).commit(); }
-        WallpaperRotation.schedule(getContext());
+            if (slot == null) for (String each : WallpaperRotation.SLOTS) WallpaperRotation.pause(getContext(), each);
+            else WallpaperRotation.pause(getContext(), WallpaperRotation.checkedSlot(slot));
         }
     }); }
-    @PluginMethod public void next(PluginCall call) { execute(call, () -> { synchronized (WallpaperRotation.LOCK) { WallpaperRotation.advance(getContext()); } }); }
+    @PluginMethod public void stop(PluginCall call) { execute(call, () -> {
+        synchronized (WallpaperRotation.LOCK) {
+            WallpaperRotation.stop(getContext(), WallpaperRotation.checkedSlot(call.getString("slot")));
+            deleteUnused();
+        }
+    }); }
+    @PluginMethod public void next(PluginCall call) { execute(call, () -> {
+        String slot = call.getString("slot");
+        synchronized (WallpaperRotation.LOCK) {
+            if (slot == null) slot = WallpaperRotation.config(getContext(), "home") != null ? "home" : "lock";
+            WallpaperRotation.advance(getContext(), WallpaperRotation.checkedSlot(slot));
+        }
+    }); }
     private JSONObject validated(PluginCall call) throws Exception {
         JSONObject config = call.getObject("config");
         if (config == null) throw new Exception("Missing playlist settings");
@@ -97,13 +110,11 @@ public class WallpaperPlugin extends Plugin {
             // Keep the old playlist intact until every new image is safely on disk.
             synchronized (WallpaperRotation.LOCK) {
             WallpaperRotation.applyFile(getContext(), new File(generation, ids.getString(0) + ".jpg"), config.getString("target"), ids.getString(0));
-            WallpaperRotation.prefs(getContext()).edit().putString("config", config.toString()).putString("generation", generation.getName()).putInt("index", 0).commit();
+            WallpaperRotation.install(getContext(), config, generation.getName(), ids.getString(0));
             committed = true;
-            WallpaperRotation.schedule(getContext());
             }
         } catch (Exception error) { if (!committed) deleteTree(generation); throw error; }
-        File[] old = root.listFiles();
-        if (old != null) for (File file : old) if (!file.equals(generation)) deleteTree(file);
+        synchronized (WallpaperRotation.LOCK) { deleteUnused(); }
     }); }
     @PluginMethod public void apply(PluginCall call) { execute(call, () -> {
         JSONObject config = validated(call);
@@ -164,6 +175,12 @@ public class WallpaperPlugin extends Plugin {
                 call.resolve();
             } catch (Exception error) { call.reject("Could not open live wallpaper preview. Open Settings → Wallpaper and style → Live wallpapers → Luma.", error); }
         });
+    }
+    /** Removes cached playlists that neither screen plays any more. Call while holding LOCK. */
+    private void deleteUnused() throws Exception {
+        java.util.Set<String> kept = WallpaperRotation.generations(getContext());
+        File[] cached = WallpaperRotation.directory(getContext()).listFiles();
+        if (cached != null) for (File file : cached) if (!kept.contains(file.getName())) deleteTree(file);
     }
     private static void deleteTree(File file) { File[] children = file.listFiles(); if (children != null) for (File child : children) deleteTree(child); file.delete(); }
 }
