@@ -47,3 +47,11 @@ corners square; inspect both widget sizes in the captured preview.
 Live wallpaper checks cover all three example cards, offline/automatic weather
 controls, coordinate draft persistence, browser-only disabled activation, and mobile
 overflow. The actual animation and Android picker run in the Android harness.
+
+2026-10-26 framing tools: Frame and Style open beneath the phone (one panel at a time,
+remembered per browser), so open the panel before using its labels. Starter art is
+exactly screen-shaped, so its position sliders are disabled until Zoom is above 100 %.
+The harness drags the preview, checks that the instant whole-photo layer shows and then
+hides once the exact render loads, and that one drag undoes in one step. The phone has
+two images: select `img.exact-render` for the server render. Generated live scenes are
+folded under a summary and must be expanded before their cards are visible.

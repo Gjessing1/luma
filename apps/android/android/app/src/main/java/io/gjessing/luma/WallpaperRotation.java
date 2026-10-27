@@ -49,6 +49,10 @@ final class WallpaperRotation {
     }
     private static void validateStyle(JSONObject style) throws Exception {
         for (String key : new String[]{"focalX", "focalY"}) checkRange(style.getDouble(key));
+        // Styles saved before zoom existed have no key and render unzoomed. getDouble rejects
+        // non-numbers, which optDouble would silently replace with its fallback.
+        double zoom = style.has("zoom") ? style.getDouble("zoom") : 100;
+        if (Double.isNaN(zoom) || zoom < 100 || zoom > 300) throw new Exception("Invalid zoom");
         JSONObject effects = style.getJSONObject("effects");
         for (String key : new String[]{"dim", "blur", "warmth"}) checkRange(effects.getDouble(key));
         effects.getBoolean("grayscale");
@@ -117,6 +121,8 @@ final class WallpaperRotation {
         state.put("model", android.os.Build.MODEL);
         state.put("supportsStyles", true);
         state.put("supportsLiveWallpaper", true);
+        state.put("supportsLiveVideo", true);
+        state.put("supportsZoom", true);
         state.put("live", LiveWallpaperSettings.state(context));
         for (String key : new String[]{"nextAt", "lastApplied"}) if (prefs.contains(key)) state.put(key, prefs.getLong(key, 0));
         for (String key : new String[]{"error", "lastId"}) if (prefs.contains(key)) state.put(key, prefs.getString(key, ""));

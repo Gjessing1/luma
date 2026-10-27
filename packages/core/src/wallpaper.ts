@@ -47,11 +47,15 @@ export interface Effects {
 export interface WallpaperStyle {
   focalX: number;
   focalY: number;
+  // Percent of the cover crop; optional because phones saved styles before zoom existed.
+  zoom?: number;
   effects: Effects;
 }
+export const maxZoom = 300;
 export const originalStyle: WallpaperStyle = {
   focalX: 50,
   focalY: 50,
+  zoom: 100,
   effects: { dim: 0, blur: 0, grayscale: false, warmth: 0 },
 };
 export interface Rotation extends WallpaperStyle {
@@ -76,6 +80,7 @@ export const defaultRotation: Rotation = {
   enabled: false,
   focalX: 50,
   focalY: 50,
+  zoom: 100,
   effects: { dim: 0, blur: 0, grayscale: false, warmth: 0 },
 };
 export function isWallpaperId(id: string): boolean {
@@ -134,6 +139,10 @@ export function validateStyle(style: WallpaperStyle): void {
     if (!Number.isFinite(n) || n < 0 || n > 100) throw new Error('Invalid crop or effect');
   }
   if (typeof style.effects.grayscale !== 'boolean') throw new Error('Invalid toggle');
+  if (style.zoom !== undefined && !isZoom(style.zoom)) throw new Error('Invalid zoom');
+}
+export function isZoom(value: number): boolean {
+  return Number.isFinite(value) && value >= 100 && value <= maxZoom;
 }
 export function wallpaperStyle(config: Rotation, id: string): WallpaperStyle {
   return config.styles === undefined ? config : (config.styles[id] ?? originalStyle);
@@ -143,19 +152,33 @@ export function migrateRotation(config: Rotation, preview?: string | null): Rota
   const styles: Record<string, WallpaperStyle> = {};
   // Preserve existing phone adjustments while making new library choices independent.
   for (const id of [...config.ids, ...(preview && isWallpaperId(preview) ? [preview] : [])]) {
-    styles[id] = { focalX: config.focalX, focalY: config.focalY, effects: { ...config.effects } };
+    styles[id] = {
+      focalX: config.focalX,
+      focalY: config.focalY,
+      zoom: config.zoom ?? 100,
+      effects: { ...config.effects },
+    };
   }
   return { ...config, ...originalStyle, effects: { ...originalStyle.effects }, styles };
 }
-export function cropRectangle(width: number, height: number, device: Device, x = 50, y = 50) {
+export function cropRectangle(
+  width: number,
+  height: number,
+  device: Device,
+  x = 50,
+  y = 50,
+  zoom = 100,
+) {
   const profile = devices[device];
   const ratio = profile.width / profile.height;
-  const cropWidth = Math.max(1, Math.min(width, Math.floor(height * ratio)));
-  const cropHeight = Math.max(1, Math.min(height, Math.floor(width / ratio)));
+  // Zooming shrinks the cover crop, which leaves room to pan on both axes.
+  const scale = 100 / zoom;
+  const cropWidth = Math.max(1, Math.floor(Math.min(width, Math.floor(height * ratio)) * scale));
+  const cropHeight = Math.max(1, Math.floor(Math.min(height, Math.floor(width / ratio)) * scale));
   return {
     left: Math.round(((width - cropWidth) * x) / 100),
     top: Math.round(((height - cropHeight) * y) / 100),
-    width: Math.max(1, cropWidth),
-    height: Math.max(1, cropHeight),
+    width: cropWidth,
+    height: cropHeight,
   };
 }

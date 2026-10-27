@@ -2,8 +2,10 @@ package io.gjessing.luma;
 
 import android.app.WallpaperColors;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Canvas;
+import android.graphics.Matrix;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
@@ -21,11 +23,17 @@ public class LumaWallpaperService extends WallpaperService {
         private final Handler handler = new Handler(Looper.getMainLooper());
         private final ExecutorService worker = Executors.newSingleThreadExecutor();
         private final LiveSceneRenderer renderer = new LiveSceneRenderer();
+        private final LiveVideoPlayer video = new LiveVideoPlayer(LumaWallpaperService.this);
         private final Runnable frame = this::draw;
         private final Runnable weatherPoll = this::pollWeather;
         private JSONObject config;
         private JSONObject weather;
         private boolean visible, surface, destroyed;
+        // Canvas leaves the surface connected as a CPU producer for its lifetime, after which
+        // MediaPlayer cannot attach. Only a new engine (Android's preview/Set wallpaper) can.
+        private boolean canvasUsed;
+        private String stillId;
+        private Bitmap still;
         private float offset;
         private final long started = SystemClock.elapsedRealtime();
 
@@ -52,6 +60,8 @@ public class LumaWallpaperService extends WallpaperService {
 
         @Override public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
             if (destroyed) return;
+            if (!"config".equals(key) && !"weather".equals(key)) return;
+            if ("config".equals(key)) { video.release(); video.retry(); stillId = null; }
             reload();
             if (android.os.Build.VERSION.SDK_INT >= 27 && ("config".equals(key) || "weather".equals(key))) notifyColorsChanged();
             if (visible && surface) {
@@ -65,6 +75,7 @@ public class LumaWallpaperService extends WallpaperService {
             visible = value;
             handler.removeCallbacks(frame);
             handler.removeCallbacks(weatherPoll);
+            if (!value) video.release();
             if (value && !destroyed) {
                 if (!isPreview()) worker.execute(() -> {
                     try { LiveWallpaperSettings.pauseHomeRotation(LumaWallpaperService.this); }
@@ -84,6 +95,7 @@ public class LumaWallpaperService extends WallpaperService {
         @Override public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
             super.onSurfaceChanged(holder, format, width, height);
             surface = true;
+            video.release();
             handler.removeCallbacks(frame);
             if (visible) handler.post(frame);
         }
@@ -95,10 +107,23 @@ public class LumaWallpaperService extends WallpaperService {
 
         private void draw() {
             if (!visible || !surface || destroyed || config == null) return;
+            PowerManager power = (PowerManager) getSystemService(POWER_SERVICE);
+            boolean videoScene = "video".equals(config.optString("scene"));
+            if (videoScene && !canvasUsed) {
+                if (video.show(config.optString("videoId"), getSurfaceHolder(), config.optBoolean("motion", true) && !power.isPowerSaveMode())) {
+                    // Poll power state without drawing Canvas over the decoder's surface.
+                    handler.postDelayed(frame, 1000);
+                    return;
+                }
+            } else if (videoScene) {
+                needsNewEngine(config.optString("videoId"));
+            } else video.release();
             Canvas canvas = null;
             try {
                 canvas = getSurfaceHolder().lockCanvas();
-                if (canvas != null) renderer.draw(canvas, config, weather,
+                if (canvas != null) canvasUsed = true;
+                if (canvas != null && videoScene) drawStill(canvas, config.optString("videoId"));
+                else if (canvas != null) renderer.draw(canvas, config, weather,
                     config.optBoolean("motion", true) ? (SystemClock.elapsedRealtime() - started) / 1000f : 0, offset);
             } catch (IllegalArgumentException | IllegalStateException ignored) {
                 // Android can remove a surface between the visibility callback and a draw.
@@ -108,14 +133,35 @@ public class LumaWallpaperService extends WallpaperService {
                     catch (IllegalArgumentException | IllegalStateException ignored) { /* Surface was removed. */ }
                 }
             }
-            if (config.optBoolean("motion", true)) {
-                PowerManager power = (PowerManager) getSystemService(POWER_SERVICE);
+            if (config.optBoolean("motion", true) && !videoScene) {
                 handler.postDelayed(frame, power.isPowerSaveMode() ? 100 : 33);
             }
         }
 
+        private void needsNewEngine(String videoId) {
+            if (videoId.equals(stillId)) return;
+            LiveWallpaperSettings.prefs(LumaWallpaperService.this).edit()
+                .putString("videoError", "Showing a still frame. Tap Save & open Android preview, then Set wallpaper, to start the video.").apply();
+        }
+
+        /** The video's first frame, cropped like the player, so a fallback still matches it. */
+        private void drawStill(Canvas canvas, String videoId) {
+            canvas.drawColor(Color.BLACK);
+            if (!videoId.equals(stillId)) {
+                stillId = videoId;
+                still = LiveVideoFiles.firstFrame(LumaWallpaperService.this, videoId);
+            }
+            if (still == null) return;
+            float scale = Math.max(canvas.getWidth() / (float) still.getWidth(), canvas.getHeight() / (float) still.getHeight());
+            Matrix matrix = new Matrix();
+            matrix.setScale(scale, scale);
+            matrix.postTranslate((canvas.getWidth() - still.getWidth() * scale) / 2, (canvas.getHeight() - still.getHeight() * scale) / 2);
+            canvas.drawBitmap(still, matrix, null);
+        }
+
         @Override public void onSurfaceDestroyed(SurfaceHolder holder) {
             surface = false;
+            video.release();
             handler.removeCallbacks(frame);
             super.onSurfaceDestroyed(holder);
         }
@@ -124,6 +170,7 @@ public class LumaWallpaperService extends WallpaperService {
             destroyed = true;
             visible = false;
             handler.removeCallbacksAndMessages(null);
+            video.release();
             LiveWallpaperSettings.prefs(LumaWallpaperService.this).unregisterOnSharedPreferenceChangeListener(this);
             worker.shutdownNow();
             super.onDestroy();

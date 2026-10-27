@@ -23,14 +23,36 @@ describe('Galaxy framing', () => {
       [1, 1],
       [1, 3000],
     ] as const) {
-      for (const x of [0, 50, 100]) {
-        const crop = cropRectangle(width, height, 's25', x, 100);
+      for (const [x, zoom] of [
+        [0, 100],
+        [50, 100],
+        [100, 100],
+        [0, 300],
+        [100, 175],
+      ] as const) {
+        const crop = cropRectangle(width, height, 's25', x, 100, zoom);
         expect(crop.left).toBeGreaterThanOrEqual(0);
         expect(crop.top).toBeGreaterThanOrEqual(0);
         expect(crop.left + crop.width).toBeLessThanOrEqual(width);
         expect(crop.top + crop.height).toBeLessThanOrEqual(height);
       }
     }
+  });
+  it('lets a zoomed screen-shaped photo move on both axes', () => {
+    expect(cropRectangle(1440, 3120, 's24-ultra', 0, 0)).toEqual(
+      cropRectangle(1440, 3120, 's24-ultra', 100, 100),
+    );
+    const zoomed = cropRectangle(1440, 3120, 's24-ultra', 100, 100, 200);
+    expect(zoomed).toEqual({ left: 720, top: 1560, width: 720, height: 1560 });
+  });
+  it('accepts styles saved before zoom existed and rejects zoom outside 100–300%', () => {
+    const id = 'a5bc359c-c9b0-4c2b-9515-2ba59841db77';
+    const { zoom: _unused, ...legacy } = originalStyle;
+    expect(() => validateRotation({ ...defaultRotation, styles: { [id]: legacy } })).not.toThrow();
+    for (const zoom of [99, 301, NaN])
+      expect(() =>
+        validateRotation({ ...defaultRotation, styles: { [id]: { ...originalStyle, zoom } } }),
+      ).toThrow('zoom');
   });
 });
 describe('playlist validation', () => {

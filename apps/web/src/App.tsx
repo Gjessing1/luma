@@ -13,6 +13,8 @@ import { appShell } from './android-shell';
 import type { PublishedApp } from './app-update';
 import { AppUpdateNotice } from './AppUpdateNotice';
 import { LiveWallpaperSettings } from './LiveWallpaperSettings';
+import { LiveVideoCollection, useLiveVideos } from './LiveVideoCollection';
+import { defaultLiveWallpaper } from '@luma/core/live-wallpaper';
 import { RotationSettings } from './RotationSettings';
 import { WallpaperDetail } from './WallpaperDetail';
 import {
@@ -37,6 +39,7 @@ export function App() {
   const [notice, setNotice] = useState('');
   const [release, setRelease] = useState<PublishedApp | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const liveVideos = useLiveVideos();
   const hadDraft = useRef(localStorage.getItem('luma.rotation') !== null);
   async function refresh() {
     setWallpapers(await api<Wallpaper[]>('/api/wallpapers'));
@@ -261,6 +264,20 @@ export function App() {
           />
         ) : (
           <>
+            {tab === 'library' && !query && !favorites && (
+              <LiveVideoCollection
+                videos={liveVideos.videos}
+                error={liveVideos.error}
+                onBrowse={() => setTab('live')}
+                onSelect={(video) => {
+                  localStorage.setItem(
+                    'luma.live',
+                    JSON.stringify({ ...defaultLiveWallpaper, scene: 'video', videoId: video.id }),
+                  );
+                  setTab('live');
+                }}
+              />
+            )}
             <div className="library-toolbar">
               <div className="filter-tabs">
                 <button
@@ -438,12 +455,14 @@ export function App() {
                 [detail.id]: {
                   focalX: next.focalX,
                   focalY: next.focalY,
+                  zoom: next.zoom ?? 100,
                   effects: next.effects,
                 },
               },
             }))
           }
           close={() => setSelected(null)}
+          supportsZoom={!wallpaperBridge() || !!native.supportsZoom}
           busy={busy}
           run={(action) => {
             void run(action);

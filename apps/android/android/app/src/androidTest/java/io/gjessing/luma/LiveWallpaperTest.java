@@ -18,9 +18,11 @@ public class LiveWallpaperTest {
 
     @Test public void serviceIsRegisteredAndProtectedByAndroid() throws Exception {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        ServiceInfo info = context.getPackageManager().getServiceInfo(new ComponentName(context, LumaWallpaperService.class), 0);
-        assertTrue(info.exported);
-        assertEquals(Manifest.permission.BIND_WALLPAPER, info.permission);
+        for (Class<?> service : new Class<?>[]{LumaWallpaperService.class, LumaWallpaperServiceAlternate.class}) {
+            ServiceInfo info = context.getPackageManager().getServiceInfo(new ComponentName(context, service), 0);
+            assertTrue(info.exported);
+            assertEquals(Manifest.permission.BIND_WALLPAPER, info.permission);
+        }
         assertNotNull(android.app.WallpaperManager.getInstance(context));
     }
 
@@ -40,6 +42,22 @@ public class LiveWallpaperTest {
         assertEquals("storm", LiveWeather.condition(99));
         assertEquals("clear", LiveWeather.condition(0));
         try { LiveWeather.condition(-1); fail("Reject corrupt weather"); } catch (Exception expected) { assertTrue(expected.getMessage().contains("code")); }
+    }
+
+    @Test public void videoSettingsRejectPathsAndMissingDownloadsWithoutReplacingTheScene() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        String previous = LiveWallpaperSettings.config(context).toString();
+        JSONObject config = config().put("scene", "video").put("videoId", "alaskan-aurora");
+        LiveWallpaperSettings.validate(config);
+        for (String id : new String[]{"../secret", "https://example.com/video.mp4", "", "a/b", "a.mp4"}) {
+            config.put("videoId", id);
+            try { LiveWallpaperSettings.validate(config); fail("Reject unsafe ID"); }
+            catch (Exception expected) { assertTrue(expected.getMessage().contains("video")); }
+        }
+        config.put("videoId", "missing-test-video");
+        try { LiveWallpaperSettings.save(context, config); fail("Reject an uncached video"); }
+        catch (Exception expected) { assertTrue(expected.getMessage().contains("Download")); }
+        assertEquals(previous, LiveWallpaperSettings.config(context).toString());
     }
 
     @Test public void scenesProduceDistinctFramesAndWeatherWorksWithoutNetwork() throws Exception {

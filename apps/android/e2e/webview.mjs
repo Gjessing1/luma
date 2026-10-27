@@ -64,7 +64,15 @@ try {
     if (await add.count()) await add.click();
   }
   await page.getByRole('button', { name: 'Preview Emerald tide', exact: true }).click();
-  await page.getByRole('button', { name: 'AMOLED night', exact: true }).click();
+  for (const [panel, action] of [
+    ['◐ Style', () => page.getByRole('button', { name: 'AMOLED night', exact: true }).click()],
+    // Starter art is screen-shaped, so zoom in to give it room to move.
+    ['⤢ Frame', () => page.getByLabel('Zoom ·').fill('150')],
+  ]) {
+    const button = page.getByRole('button', { name: panel, exact: true });
+    if ((await button.getAttribute('aria-expanded')) !== 'true') await button.click();
+    await action();
+  }
   await page.getByLabel('Horizontal position').fill('75');
   execFileSync(adb, ['shell', 'input', 'keyevent', '4']);
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
@@ -82,6 +90,7 @@ try {
   let current = await state();
   assert.equal(current.config.ids.length, 2);
   assert.equal(current.config.device, 's25');
+  assert.ok(Object.values(current.config.styles).some((style) => style.zoom === 150));
   assert.equal(current.config.enabled, true);
   assert.ok(current.nextAt > Date.now());
   assert.equal(await page.getByRole('button', { name: 'Schedule', exact: true }).count(), 1);
@@ -102,6 +111,7 @@ try {
       device: 's25',
       x: String(style.focalX),
       y: String(style.focalY),
+      zoom: String(style.zoom ?? 100),
       dim: String(style.effects.dim),
       blur: '0',
       warmth: '0',
@@ -157,6 +167,8 @@ try {
   await page.screenshot({ path: 'test-results/android-schedule.png' });
   await page.getByRole('button', { name: 'Library', exact: true }).click();
   await page.getByRole('button', { name: 'Preview Emerald tide', exact: true }).click();
+  const style = page.getByRole('button', { name: '◐ Style', exact: true });
+  if ((await style.getAttribute('aria-expanded')) !== 'true') await style.click();
   await page.getByRole('button', { name: 'AMOLED night', exact: true }).click();
   for (const target of ['home', 'lock', 'both']) {
     await page.getByLabel('Apply wallpaper to').selectOption(target);

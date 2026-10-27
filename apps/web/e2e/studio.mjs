@@ -71,18 +71,52 @@ try {
   await page.getByRole('button', { name: 'Library', exact: false }).click();
   await page.getByRole('button', { name: 'Preview Emerald tide' }).click();
   await page.getByRole('dialog').waitFor();
+  // Adjustments open from the tool bar under the phone; one panel shows at a time.
+  async function tool(name) {
+    const button = page.getByRole('button', { name, exact: true });
+    if ((await button.getAttribute('aria-expanded')) !== 'true') await button.click();
+  }
+  await tool('◐ Style');
   await page.getByRole('button', { name: 'AMOLED night' }).click();
-  await page.locator('.phone-preview img').evaluate((img) => img.decode());
-  assert.match(await page.locator('.phone-preview img').getAttribute('src'), /dim=35/);
+  await page.waitForFunction(() =>
+    document.querySelector('.phone-preview img.exact-render')?.src.includes('dim=35'),
+  );
+  await page.locator('.phone-preview img.exact-render').evaluate((img) => img.decode());
+  await tool('⤢ Frame');
+  // Starter art is exactly screen-shaped: it can only move after zooming in.
+  assert.equal(await page.getByLabel('Horizontal position').isDisabled(), true);
+  await page.getByText('already fits the screen exactly').waitFor();
+  await page.getByLabel('Zoom ·').fill('150');
   await page.getByLabel('Horizontal position').fill('75');
   await page.getByLabel('Vertical position').fill('20');
-  await page.getByRole('button', { name: 'Reset position', exact: true }).click();
+  await page.getByRole('button', { name: 'Reset framing', exact: true }).click();
   assert.equal(await page.getByLabel('Horizontal position').inputValue(), '50');
+  assert.equal(await page.getByLabel('Zoom ·').inputValue(), '100');
   await page.getByRole('button', { name: 'Undo adjustment', exact: true }).click();
   assert.equal(await page.getByLabel('Horizontal position').inputValue(), '75');
   assert.equal(await page.getByLabel('Vertical position').inputValue(), '20');
+  assert.equal(await page.getByLabel('Zoom ·').inputValue(), '150');
+  // Dragging the picture left reveals its right side; the whole drag is one undo step.
+  const phone = await page.locator('.phone-preview').boundingBox();
+  await page.mouse.move(phone.x + phone.width / 2, phone.y + phone.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(phone.x + phone.width / 2 - 30, phone.y + phone.height / 2, { steps: 5 });
+  await page.locator('.phone-preview img.source-layer:not([hidden])').waitFor();
+  await page.mouse.up();
+  assert.ok(Number(await page.getByLabel('Horizontal position').inputValue()) > 75);
+  // The exact server render replaces the instant layer once it has loaded.
+  await page.waitForFunction(
+    () => document.querySelector('.phone-preview img.source-layer')?.hidden === true,
+  );
+  assert.match(
+    await page.locator('.phone-preview img.exact-render').getAttribute('src'),
+    /zoom=150/,
+  );
+  await page.getByRole('button', { name: 'Undo adjustment', exact: true }).click();
+  assert.equal(await page.getByLabel('Horizontal position').inputValue(), '75');
   await page.getByRole('button', { name: 'Reset all adjustments', exact: true }).click();
   assert.equal(await page.getByLabel('Horizontal position').inputValue(), '50');
+  await tool('◐ Style');
   assert.equal(await page.getByLabel('Dim ·').inputValue(), '0');
   await page.getByRole('button', { name: 'Undo adjustment', exact: true }).click();
   assert.equal(await page.getByLabel('Dim ·').inputValue(), '35');
@@ -97,16 +131,21 @@ try {
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   await page.getByRole('button', { name: 'Preview Blue hour' }).click();
   assert.equal(await page.getByLabel('Dim ·').inputValue(), '0');
+  await tool('⤢ Frame');
   assert.equal(await page.getByLabel('Horizontal position').inputValue(), '50');
   await page.goBack();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   await page.getByRole('button', { name: 'Preview Emerald tide' }).click();
-  assert.equal(await page.getByLabel('Dim ·').inputValue(), '35');
+  // The last opened panel is remembered.
   assert.equal(await page.getByLabel('Horizontal position').inputValue(), '75');
+  await tool('◐ Style');
+  assert.equal(await page.getByLabel('Dim ·').inputValue(), '35');
   await page.reload();
   await page.getByRole('dialog').waitFor();
   assert.equal(await page.getByLabel('Dim ·').inputValue(), '35');
+  await tool('⤢ Frame');
   assert.equal(await page.getByLabel('Horizontal position').inputValue(), '75');
+  assert.equal(await page.getByLabel('Zoom ·').inputValue(), '150');
   const download = await page.request.get(
     new URL(await page.getByRole('link', { name: 'Download image' }).getAttribute('href'), origin)
       .href,
@@ -137,7 +176,7 @@ try {
   await page.getByRole('button', { name: 'Library', exact: false }).click();
   await page.getByRole('button', { name: 'Preview Test woodland' }).click();
   await page.getByLabel('Wallpaper name').fill('Test renamed');
-  await page.getByRole('heading', { name: 'Galaxy styling' }).click();
+  await page.getByRole('heading', { name: 'Set as wallpaper' }).click();
   await page
     .getByRole('dialog')
     .getByRole('heading', { name: 'Test renamed', exact: true })
@@ -168,7 +207,10 @@ try {
   await page.goBack();
   await page.getByRole('heading', { name: 'Library', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Live wallpaper', exact: true }).click();
-  await page.getByRole('heading', { name: 'Live scenes', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'Live wallpaper', exact: true, level: 1 }).waitFor();
+  // Generated scenes start folded away so the video collection leads.
+  assert.equal(await page.locator('.live-scene-card').first().isVisible(), false);
+  await page.getByText('Generated scenes ·').click();
   assert.equal(await page.locator('.live-scene-card').count(), 3);
   assert.equal(
     await page
@@ -185,6 +227,7 @@ try {
   await page.reload();
   assert.equal(await page.getByLabel('Weather source').inputValue(), 'auto');
   assert.equal(await page.getByLabel('Latitude', { exact: true }).inputValue(), '60.39');
+  await page.getByText('Selected: Weather landscape (generated scene)').waitFor();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   await page.screenshot({ path: 'test-results/live-settings-mobile.png', fullPage: true });
   await page.getByRole('button', { name: 'Library', exact: true }).click();
@@ -236,7 +279,7 @@ try {
     assert.equal(await nativePage.locator('.s24-dock-icon').count(), 5);
     assert.equal(await nativePage.locator('.preview-widget').count(), 0);
     const phone = await nativePage.locator('.phone-preview').boundingBox();
-    const photo = await nativePage.locator('.phone-preview img').boundingBox();
+    const photo = await nativePage.locator('.phone-preview img.exact-render').boundingBox();
     assert.ok(Math.abs(photo.width / photo.height - 1440 / 3120) < 0.0001);
     assert.ok(Math.abs(photo.height - phone.height) < 0.1, 'Frame must not recrop the image');
     // Anchors measured from the supplied One UI screenshot, as fractions of its height.
@@ -286,7 +329,7 @@ try {
     assert.ok(Math.abs(photos.width / phone.width - 0.3249) < 0.002);
     assert.ok(Math.abs(photos.height / phone.height - 0.2071) < 0.002);
     assert.equal(
-      await nativePage.locator('.phone-preview > img').getAttribute('src'),
+      await nativePage.locator('.phone-preview > img.exact-render').getAttribute('src'),
       await nativePage.getByRole('link', { name: 'Download image' }).getAttribute('href'),
     );
     await nativePage.screenshot({

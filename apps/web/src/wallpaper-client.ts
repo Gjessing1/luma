@@ -11,11 +11,14 @@ import {
 export interface NativeState {
   supportsStyles?: boolean;
   supportsLiveWallpaper?: boolean;
+  supportsLiveVideo?: boolean;
+  supportsZoom?: boolean;
   live?: {
     config: LiveWallpaperConfig;
     active: boolean;
     weather?: { condition: string; night: boolean; updatedAt: number };
     weatherError?: string;
+    videoError?: string;
   };
   config?: Rotation;
   nextAt?: number;
@@ -44,6 +47,7 @@ export function imageUrl(id: string, config: Rotation, thumb = false): string {
     device: config.device,
     x: String(style.focalX),
     y: String(style.focalY),
+    zoom: String(style.zoom ?? 100),
     dim: String(style.effects.dim),
     blur: String(style.effects.blur),
     warmth: String(style.effects.warmth),
@@ -51,6 +55,9 @@ export function imageUrl(id: string, config: Rotation, thumb = false): string {
     thumb: thumb ? '1' : '0',
   });
   return `/api/wallpapers/${id}/image?${query}`;
+}
+export function sourceUrl(id: string): string {
+  return `/api/wallpapers/${id}/source`;
 }
 export function loadRotation(): Rotation {
   try {

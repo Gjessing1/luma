@@ -71,3 +71,17 @@ The direct CHANGE_LIVE_WALLPAPER entry can report `LiveWallpaperChange` as
 `topResumedActivity`, rather than `LiveWallpaperPreview`/`mResumedActivity`.
 Check the livepicker package and action as well as the displayed preview; a single
 hard-coded Activity class name can fail while the actual picker works.
+
+Trap (2026-10-27): `uiautomator dump` waits for an idle window and returns "null root
+node" while a video preview plays, so `nativeButton` never finds the destination dialog.
+Choose video wallpapers with Animate off, then enable motion with `configureLive`.
+
+Trap (2026-10-27): a Canvas-drawn wallpaper surface stays connected as a CPU producer, so
+MediaPlayer gets `setVideoSurfaceTexture failed: -22` on that engine. Setting the same
+component again keeps the engine; Luma's preview alternates between two identical
+components so Set wallpaper binds a fresh one. Android rebinds asynchronously: poll
+`dumpsys wallpaper`, and read the first `mWallpaperComponent=` line, not any mention.
+
+Trap (2026-10-27): the live picker renders Set wallpaper before its preview engine has
+connected, with `enabled="false"`; tapping it then does nothing and the destination
+dialog never opens. `nativeButton` skips disabled nodes and retries.

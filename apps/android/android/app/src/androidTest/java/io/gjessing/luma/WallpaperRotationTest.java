@@ -42,6 +42,13 @@ public class WallpaperRotationTest {
         style.put("focalX", -1);
         try { WallpaperRotation.validate(settings); fail("Must reject invalid per-wallpaper crop"); }
         catch (Exception expected) { assertTrue(expected.getMessage().contains("Invalid crop")); }
+        style.put("focalX", 75).put("zoom", 150);
+        WallpaperRotation.validate(settings);
+        for (double zoom : new double[]{99, 301, Double.NaN}) {
+            style.put("zoom", Double.isNaN(zoom) ? "big" : zoom);
+            try { WallpaperRotation.validate(settings); fail("Must reject invalid zoom"); }
+            catch (Exception expected) { assertTrue(expected.getMessage().contains("zoom")); }
+        }
     }
     private void image(File file, int color) throws Exception {
         Bitmap bitmap = Bitmap.createBitmap(120, 260, Bitmap.Config.ARGB_8888); bitmap.eraseColor(color);

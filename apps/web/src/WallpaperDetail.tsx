@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { originalStyle, type Target, type Rotation, type Wallpaper } from '@luma/core/wallpaper';
 import { PhonePreview } from './PhonePreview';
+import { FramePanel, StylePanel } from './AdjustmentPanels';
 import { imageUrl, wallpaperBridge } from './wallpaper-client';
 
 interface Props {
@@ -13,6 +14,16 @@ interface Props {
   apply: (target: Target) => Promise<void>;
   remove: () => Promise<void>;
   rename: (name: string) => Promise<void>;
+  supportsZoom: boolean;
+}
+type Tool = 'frame' | 'style' | null;
+function savedTool(): Tool {
+  try {
+    const saved = localStorage.getItem('luma.detailTool');
+    return saved === 'frame' || saved === 'style' ? saved : null;
+  } catch {
+    return null;
+  }
 }
 export function WallpaperDetail({
   wallpaper: w,
@@ -24,8 +35,10 @@ export function WallpaperDetail({
   apply,
   remove,
   rename,
+  supportsZoom,
 }: Props) {
   const [undo, setUndo] = useState<Rotation | null>(null);
+  const [tool, setTool] = useState<Tool>(savedTool);
   const gesture = useRef<Rotation | null>(null);
   const [target, setTarget] = useState<Target>(() => {
     const saved = localStorage.getItem('luma.applyTarget');
@@ -67,8 +80,14 @@ export function WallpaperDetail({
     };
   }, []);
   const bridge = wallpaperBridge();
-  function effect(key: 'dim' | 'blur' | 'warmth', value: number) {
-    change({ ...config, effects: { ...config.effects, [key]: value } });
+  function toggle(next: Tool) {
+    const value = tool === next ? null : next;
+    setTool(value);
+    try {
+      localStorage.setItem('luma.detailTool', value ?? '');
+    } catch {
+      // Remembering the open panel is only a convenience.
+    }
   }
   return (
     <div className="modal-backdrop" onClick={close}>
@@ -79,26 +98,74 @@ export function WallpaperDetail({
         aria-modal="true"
         aria-label="Wallpaper preview"
         onClick={(e) => e.stopPropagation()}
+        // One drag of a slider or the preview is one undo step.
+        onPointerDownCapture={() => {
+          gesture.current ??= config;
+        }}
+        onPointerUpCapture={() => {
+          gesture.current = null;
+        }}
+        onPointerCancelCapture={() => {
+          gesture.current = null;
+        }}
+        onKeyDownCapture={() => {
+          gesture.current = null;
+        }}
       >
         <button className="modal-close" onClick={close} aria-label="Close preview">
           ×
         </button>
-        <PhonePreview wallpaper={w} config={config} />
-        <div
-          className="detail-controls"
-          onPointerDownCapture={() => {
-            gesture.current = config;
-          }}
-          onPointerUpCapture={() => {
-            gesture.current = null;
-          }}
-          onPointerCancelCapture={() => {
-            gesture.current = null;
-          }}
-          onKeyDownCapture={() => {
-            gesture.current = null;
-          }}
+        <PhonePreview
+          wallpaper={w}
+          config={config}
+          onFrame={(frame) => change({ ...config, ...frame })}
         >
+          <div className="tool-bar" role="toolbar" aria-label="Adjust wallpaper">
+            <button
+              aria-expanded={tool === 'frame'}
+              aria-controls="tool-panel"
+              onClick={() => toggle('frame')}
+            >
+              ⤢ Frame
+            </button>
+            <button
+              aria-expanded={tool === 'style'}
+              aria-controls="tool-panel"
+              onClick={() => toggle('style')}
+            >
+              ◐ Style
+            </button>
+            <button
+              aria-label="Undo adjustment"
+              disabled={!undo}
+              onClick={() => {
+                if (undo) {
+                  setConfig(undo);
+                  setUndo(null);
+                }
+              }}
+            >
+              ↶ Undo
+            </button>
+            <button
+              aria-label="Reset all adjustments"
+              onClick={() => change({ ...config, ...structuredClone(originalStyle) })}
+            >
+              Reset
+            </button>
+          </div>
+          {tool === 'frame' && (
+            <FramePanel wallpaper={w} config={config} change={change} supportsZoom={supportsZoom} />
+          )}
+          {tool === 'style' && <StylePanel config={config} change={change} />}
+          {tool && (
+            <p className="tool-hint">
+              Saved for this wallpaper on this phone, also when it rotates. Save the playlist again
+              to update the phone’s downloaded copies.
+            </p>
+          )}
+        </PhonePreview>
+        <div className="detail-controls">
           <span className="eyebrow">PREVIEW</span>
           <h2>{w.name}</h2>
           <p className="muted">
@@ -123,139 +190,7 @@ export function WallpaperDetail({
               }}
             />
           </label>
-          <p className="muted small">Adjustments are saved for this wallpaper on this phone.</p>
-          <div className="button-row adjustment-actions">
-            <button
-              disabled={!undo}
-              onClick={() => {
-                if (undo) {
-                  setConfig(undo);
-                  setUndo(null);
-                }
-              }}
-            >
-              Undo adjustment
-            </button>
-            <button onClick={() => change({ ...config, ...structuredClone(originalStyle) })}>
-              Reset all adjustments
-            </button>
-          </div>
-          <h3>Framing</h3>
-          <label>
-            Horizontal position · {config.focalX}%
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={config.focalX}
-              onChange={(e) => change({ ...config, focalX: Number(e.target.value) })}
-            />
-          </label>
-          <label>
-            Vertical position · {config.focalY}%
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={config.focalY}
-              onChange={(e) => change({ ...config, focalY: Number(e.target.value) })}
-            />
-          </label>
-          <button
-            className="reset-control"
-            onClick={() => change({ ...config, focalX: 50, focalY: 50 })}
-          >
-            Reset position
-          </button>
-          <h3>Galaxy styling</h3>
-          <div className="effect-presets">
-            <button
-              onClick={() =>
-                change({ ...config, effects: { dim: 0, blur: 0, grayscale: false, warmth: 0 } })
-              }
-            >
-              Original
-            </button>
-            <button
-              onClick={() =>
-                change({ ...config, effects: { dim: 35, blur: 0, grayscale: false, warmth: 0 } })
-              }
-            >
-              AMOLED night
-            </button>
-            <button
-              onClick={() =>
-                change({
-                  ...config,
-                  effects: { dim: 15, blur: 45, grayscale: false, warmth: 15 },
-                })
-              }
-            >
-              Soft glass
-            </button>
-          </div>
-          <label>
-            Dim · {config.effects.dim}%
-            <input
-              type="range"
-              value={config.effects.dim}
-              onChange={(e) => effect('dim', Number(e.target.value))}
-            />
-          </label>
-          <button
-            className="reset-control"
-            disabled={config.effects.dim === 0}
-            onClick={() => effect('dim', 0)}
-          >
-            Reset dim
-          </button>
-          <label>
-            Background blur · {config.effects.blur}%
-            <input
-              type="range"
-              value={config.effects.blur}
-              onChange={(e) => effect('blur', Number(e.target.value))}
-            />
-          </label>
-          <button
-            className="reset-control"
-            disabled={config.effects.blur === 0}
-            onClick={() => effect('blur', 0)}
-          >
-            Reset background blur
-          </button>
-          <label>
-            Warmth · {config.effects.warmth}%
-            <input
-              type="range"
-              value={config.effects.warmth}
-              onChange={(e) => effect('warmth', Number(e.target.value))}
-            />
-          </label>
-          <button
-            className="reset-control"
-            disabled={config.effects.warmth === 0}
-            onClick={() => effect('warmth', 0)}
-          >
-            Reset warmth
-          </button>
-          <label className="check-row">
-            <input
-              type="checkbox"
-              checked={config.effects.grayscale}
-              onChange={(e) =>
-                change({
-                  ...config,
-                  effects: { ...config.effects, grayscale: e.target.checked },
-                })
-              }
-            />
-            Grayscale
-          </label>
-          <p className="muted small">
-            These adjustments also apply when this wallpaper rotates. Save the playlist again to
-            update the phone’s downloaded copies.
-          </p>
+          <h3>Set as wallpaper</h3>
           <label>
             Apply wallpaper to
             <select
@@ -278,6 +213,11 @@ export function WallpaperDetail({
           >
             Apply to {target === 'both' ? 'home & lock screen' : `${target} screen`}
           </button>
+          {(config.zoom ?? 100) > 100 && !supportsZoom && (
+            <p className="resolution-note">
+              Update the Android app first: this version applies the photo unzoomed.
+            </p>
+          )}
           <p className="muted small">
             Apply sets this photo immediately, without Android’s preview. For animated scenes, close
             this photo and open Live wallpaper → Save & open Android preview. For Samsung’s photo

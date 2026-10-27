@@ -87,6 +87,51 @@ describe('wallpaper library', () => {
     expect((await restarted.inject('/api/wallpapers')).json()).toHaveLength(2);
     await restarted.close();
   });
+  it('zooms a screen-shaped photo so it can be moved, and serves the whole photo for previews', async () => {
+    // Left half black, right half white, already exactly the S24 Ultra's shape.
+    const image = await sharp({
+      create: { width: 1440, height: 3120, channels: 3, background: '#ffffff' },
+    })
+      .composite([
+        {
+          input: { create: { width: 720, height: 3120, channels: 3, background: '#000000' } },
+          left: 0,
+          top: 0,
+        },
+      ])
+      .png()
+      .toBuffer();
+    const row = (
+      await app.inject({
+        method: 'POST',
+        url: '/api/wallpapers',
+        headers: { 'content-type': 'image/png' },
+        payload: image,
+      })
+    ).json<Wallpaper>();
+    async function brightness(query: string) {
+      const render = await app.inject(`/api/wallpapers/${row.id}/image?${query}`);
+      expect(render.statusCode).toBe(200);
+      const { channels } = await sharp(render.rawPayload).stats();
+      return channels[0]!.mean;
+    }
+    expect(await brightness('x=0')).toBeCloseTo(await brightness('x=100'), 0);
+    expect(await brightness('zoom=200&x=0')).toBeLessThan(5);
+    expect(await brightness('zoom=200&x=100')).toBeGreaterThan(250);
+    for (const zoom of ['99', '301', 'NaN'])
+      expect((await app.inject(`/api/wallpapers/${row.id}/image?zoom=${zoom}`)).statusCode).toBe(
+        400,
+      );
+    const source = await app.inject(`/api/wallpapers/${row.id}/source`);
+    expect(await sharp(source.rawPayload).metadata()).toMatchObject({
+      width: 738,
+      height: 1600,
+      format: 'jpeg',
+    });
+    expect(
+      (await app.inject('/api/wallpapers/a5bc359c-c9b0-4c2b-9515-2ba59841db77/source')).statusCode,
+    ).toBe(404);
+  });
   it('keeps photo provenance through uploads and rejects unsafe source links', async () => {
     const image = await sharp({
       create: { width: 60, height: 130, channels: 3, background: '#24384c' },

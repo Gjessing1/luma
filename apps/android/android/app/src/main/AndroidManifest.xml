@@ -49,6 +49,17 @@
             <meta-data android:name="android.service.wallpaper" android:resource="@xml/live_wallpaper" />
         </service>
 
+        <service
+            android:name=".LumaWallpaperServiceAlternate"
+            android:label="@string/live_wallpaper_alternate_name"
+            android:permission="android.permission.BIND_WALLPAPER"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data android:name="android.service.wallpaper" android:resource="@xml/live_wallpaper" />
+        </service>
+
         <receiver android:name=".WallpaperAlarmReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

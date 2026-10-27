@@ -13,10 +13,15 @@ describe('live wallpaper settings at the bridge boundary', () => {
         longitude: 180,
       }),
     ).not.toThrow();
+    expect(() =>
+      validateLiveWallpaper({ ...defaultLiveWallpaper, scene: 'video', videoId: 'alaskan-aurora' }),
+    ).not.toThrow();
   });
   it.each([
     null,
     { ...defaultLiveWallpaper, scene: 'video' },
+    { ...defaultLiveWallpaper, scene: 'video', videoId: '../secrets' },
+    { ...defaultLiveWallpaper, scene: 'video', videoId: 'https://example.com/video.mp4' },
     { ...defaultLiveWallpaper, weather: 'unknown' },
     { ...defaultLiveWallpaper, latitude: NaN },
     { ...defaultLiveWallpaper, longitude: Infinity },

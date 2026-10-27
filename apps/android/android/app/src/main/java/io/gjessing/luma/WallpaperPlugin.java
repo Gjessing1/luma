@@ -69,6 +69,7 @@ public class WallpaperPlugin extends Plugin {
         Uri uri = Uri.parse(BuildConfig.SERVER_URL).buildUpon().appendEncodedPath("api/wallpapers/" + id + "/image")
             .appendQueryParameter("device", config.getString("device"))
             .appendQueryParameter("x", style.getString("focalX")).appendQueryParameter("y", style.getString("focalY"))
+            .appendQueryParameter("zoom", String.valueOf(style.optDouble("zoom", 100)))
             .appendQueryParameter("dim", effects.getString("dim")).appendQueryParameter("blur", effects.getString("blur"))
             .appendQueryParameter("warmth", effects.getString("warmth")).appendQueryParameter("grayscale", effects.getBoolean("grayscale") ? "1" : "0").build();
         HttpURLConnection connection = (HttpURLConnection) new URL(uri.toString()).openConnection();
@@ -142,8 +143,12 @@ public class WallpaperPlugin extends Plugin {
         catch (Exception error) { try { getActivity().startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS)); call.resolve(); } catch (Exception fallback) { call.reject("Open Settings → Wallpaper and style on your Galaxy"); } }
     }
     @PluginMethod public void configureLive(PluginCall call) { execute(call, () -> {
+        JSONObject config = call.getObject("config");
+        LiveWallpaperSettings.validate(config);
+        if (config.getString("scene").equals("video"))
+            LiveVideoFiles.download(getContext(), config.getString("videoId"));
         synchronized (LiveWallpaperSettings.class) {
-            LiveWallpaperSettings.save(getContext(), call.getObject("config"));
+            LiveWallpaperSettings.save(getContext(), config);
         }
     }); }
     @PluginMethod public void openLiveWallpaperPreview(PluginCall call) {
@@ -154,7 +159,7 @@ public class WallpaperPlugin extends Plugin {
                 if (!manager.isWallpaperSupported() || !manager.isSetWallpaperAllowed()) throw new Exception("This device does not allow changing wallpaper");
                 Intent intent = new Intent(android.app.WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER)
                     .putExtra(android.app.WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,
-                        new android.content.ComponentName(getContext(), LumaWallpaperService.class));
+                        LiveWallpaperSettings.previewComponent(getContext()));
                 getActivity().startActivity(intent);
                 call.resolve();
             } catch (Exception error) { call.reject("Could not open live wallpaper preview. Open Settings → Wallpaper and style → Live wallpapers → Luma.", error); }

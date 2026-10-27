@@ -9,5 +9,6 @@
     <string name="retry">Retry</string>
     <string name="update_downloading">Downloading the Luma update…</string>
     <string name="live_wallpaper_name">Luma live wallpaper</string>
+    <string name="live_wallpaper_alternate_name">Luma live wallpaper (restart)</string>
     <string name="live_wallpaper_description">Aurora, drifting stars and a weather landscape. Choose a scene in Luma.</string>
 </resources>

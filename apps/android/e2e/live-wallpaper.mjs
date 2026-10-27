@@ -52,7 +52,8 @@ async function state() {
   return page.evaluate(() => window.Capacitor.Plugins.Wallpaper.getState());
 }
 async function screenshot(name) {
-  const bytes = execFileSync(adb, ['exec-out', 'screencap', '-p']);
+  // Detailed video frames make PNGs larger than execFileSync's 1 MB default buffer.
+  const bytes = execFileSync(adb, ['exec-out', 'screencap', '-p'], { maxBuffer: 32 * 1024 * 1024 });
   await writeFile(`test-results/${name}.png`, bytes);
   return bytes;
 }
@@ -62,7 +63,8 @@ async function nativeButton(pattern) {
     const xml = shell('cat', '/sdcard/luma-window.xml');
     for (const node of xml.matchAll(/<node\b[^>]+>/g)) {
       const label = node[0].match(/text="([^"]*)"/)?.[1] ?? '';
-      if (!pattern.test(label)) continue;
+      // The picker shows Set wallpaper disabled until its preview engine has connected.
+      if (!pattern.test(label) || node[0].includes('enabled="false"')) continue;
       const bounds = node[0].match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
       if (!bounds) continue;
       shell(
@@ -108,8 +110,13 @@ try {
   await delay(2000);
   await connect();
   await page.getByRole('button', { name: 'Live wallpaper', exact: true }).click();
-  await page.getByRole('button', { name: 'Aurora', exact: false }).click();
-  await page.getByLabel('Animate wallpaper', { exact: true }).check();
+  // Generated scenes are folded beneath the video collection.
+  const generated = page.locator('details.generated-scenes');
+  if (!(await generated.evaluate((element) => element.open)))
+    await generated.locator('summary').click();
+  await page.locator('.live-scene-card', { hasText: 'Aurora' }).click();
+  // An animating preview never idles, which blocks uiautomator; start motion after Set.
+  await page.getByLabel('Animate wallpaper', { exact: true }).uncheck();
   await page.getByRole('button', { name: 'Save & open Android preview', exact: true }).click();
   await delay(2000);
   await screenshot('live-android-preview');
@@ -120,14 +127,30 @@ try {
   assert.equal(await nativeButton(/^Set wallpaper$/i), true, 'Android must offer Set wallpaper');
   // AOSP versions differ: the picker may offer Home, Both or apply immediately.
   await delay(800);
-  await nativeButton(/^Home screen$/i);
+  for (let attempt = 0; attempt < 3 && !(await nativeButton(/^Home screen$/i)); attempt++);
   await home();
+  // Each preview alternates between Luma's two components; Android rebinds asynchronously.
+  for (
+    let attempt = 0;
+    attempt < 20 &&
+    !/mWallpaperComponent=ComponentInfo\{io\.gjessing\.luma/.test(shell('dumpsys', 'wallpaper'));
+    attempt++
+  )
+    await delay(500);
   assert.match(
     shell('dumpsys', 'wallpaper'),
     /io\.gjessing\.luma\/(?:io\.gjessing\.luma)?\.LumaWallpaperService/,
     'System must bind Luma behind the launcher',
   );
-  console.log('Android confirmed the live wallpaper; checking frames and rotation.');
+  console.log(
+    'Android confirmed the live wallpaper; checking frames and rotation.',
+    shell('dumpsys', 'wallpaper').match(/mWallpaperComponent=ComponentInfo\{([^}]+)\}/)?.[1],
+  );
+  await app();
+  await save({ ...(await state()).live.config, motion: true });
+  await home();
+  // Android animates the wallpaper change; sample after it settles.
+  await delay(1500);
   const movingA = await screenshot('live-aurora-home');
   await delay(1200);
   const movingB = await screenshot('live-aurora-moving');
@@ -150,6 +173,85 @@ try {
     await sample(stillB),
     'Motion off must render a still scene',
   );
+  // Switch the running generated scene to a video through the UI. The engine's surface has
+  // already been drawn with Canvas, so the UI must route through Android's preview.
+  await app();
+  await page
+    .locator('.live-video-card', { hasText: 'Sea nettles' })
+    .getByRole('button', { name: 'Choose wallpaper', exact: true })
+    .click();
+  // uiautomator cannot dump a window that never idles, so pick the destination while the
+  // preview shows a still frame and start motion afterwards.
+  await page.getByLabel('Animate wallpaper', { exact: true }).uncheck();
+  await page.getByText('Selected: Sea nettles').waitFor();
+  assert.equal(
+    await page.getByRole('button', { name: 'Save live wallpaper', exact: true }).count(),
+    0,
+    'Switching to a video must go through Android preview',
+  );
+  // The first mWallpaperComponent line is the home wallpaper; other lines name old connections.
+  const component = () =>
+    shell('dumpsys', 'wallpaper').match(/mWallpaperComponent=ComponentInfo\{([^}]+)\}/)?.[1];
+  const sceneComponent = component();
+  await page.getByRole('button', { name: 'Save & open Android preview', exact: true }).click();
+  await delay(1500);
+  await screenshot('live-video-picker');
+  assert.equal(await nativeButton(/^Set wallpaper$/i), true, 'Android must offer Set wallpaper');
+  await delay(800);
+  await screenshot('live-video-destination');
+  let chosen = false;
+  for (let attempt = 0; attempt < 3 && !chosen; attempt++)
+    chosen = await nativeButton(/^Home screen$/i);
+  console.log('Video destination chosen:', chosen);
+  await home();
+  // Android rebinds asynchronously after Set wallpaper.
+  for (let attempt = 0; attempt < 20 && component() === sceneComponent; attempt++) await delay(500);
+  assert.notEqual(component(), sceneComponent, 'Preview must bind the other Luma component');
+  await app();
+  await save({ ...(await state()).live.config, motion: true });
+  await home();
+  await delay(1500);
+  const videoA = await screenshot('live-video-home');
+  await delay(1500);
+  const videoB = await screenshot('live-video-moving');
+  assert.notDeepEqual(await sample(videoA), await sample(videoB), 'Video wallpaper must play');
+  await app();
+  current = await state();
+  assert.equal(
+    current.live.config.videoId,
+    'sea-nettles',
+    'Saving downloads and selects the video',
+  );
+  assert.equal(current.live.videoError, undefined, 'Video must decode without errors');
+  assert.match(
+    shell('run-as', 'io.gjessing.luma', 'ls', '-l', 'files/live-videos'),
+    /sea-nettles\.mp4/,
+  );
+  // Same engine, video to video: the decoder reattaches and pauses on a frame.
+  await save({ ...current.live.config, motion: false });
+  await home();
+  await delay(1500);
+  const videoStillA = await screenshot('live-video-still');
+  await delay(1200);
+  const videoStillB = await screenshot('live-video-still-second');
+  assert.deepEqual(
+    await sample(videoStillA),
+    await sample(videoStillB),
+    'Motion off must pause the video on a frame',
+  );
+  // A video saved directly onto an engine that drew a generated scene shows a still and asks
+  // for Android's preview instead of failing.
+  await app();
+  await save({ ...settings, scene: 'stars', motion: true });
+  await home();
+  await app();
+  await save({ ...current.live.config, motion: true });
+  await home();
+  await delay(1500);
+  await screenshot('live-video-fallback-still');
+  await app();
+  assert.match((await state()).live.videoError ?? '', /Android preview/);
+
   await app();
   await save({ ...settings, scene: 'stars', motion: true });
   await home();
@@ -205,7 +307,8 @@ try {
   assert.equal((await state()).live.active, true);
   await page.evaluate(() => window.Capacitor.Plugins.Wallpaper.pause());
   // Hidden engine must stop posting frames (inspectable through dumpsys wallpaper).
-  const hidden = shell('dumpsys', 'activity', 'service', 'io.gjessing.luma/.LumaWallpaperService');
+  // Either Luma component may be running: each Android preview alternates between them.
+  const hidden = shell('dumpsys', 'activity', 'service', 'io.gjessing.luma');
   await writeFile('test-results/live-wallpaper-hidden.txt', hidden);
   assert.match(hidden, /mVisible=false/, 'Wallpaper must hide behind the full-screen app');
   await page.evaluate(async () => {
@@ -219,7 +322,7 @@ try {
   await connect();
   assert.equal((await state()).live.active, false, 'Applying a photo switches back');
   console.log(
-    'Live wallpaper passed: real picker/cancel/activation, launcher animation, still mode, all scenes/presets, rotation pause/lock-only coexistence, automatic weather, invalid-save rollback and switching back to photos.',
+    'Live wallpaper passed: real picker/cancel/activation, launcher animation, still mode, video download/playback/pause, all scenes/presets, rotation pause/lock-only coexistence, automatic weather, invalid-save rollback and switching back to photos.',
   );
 } finally {
   await browser?.close();

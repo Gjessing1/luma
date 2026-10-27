@@ -5,6 +5,7 @@ import {
   cropRectangle,
   devices,
   isWallpaperId,
+  isZoom,
   parseWallpaperSource,
   type Device,
 } from '@luma/core/wallpaper';
@@ -88,6 +89,8 @@ export function registerWallpaperRoutes(app: FastifyInstance, dataDir: string) {
         if (!Number.isFinite(n) || n < 0 || n > 100) throw new Error('Invalid effect');
         return n;
       }
+      const zoom = Number(q.zoom ?? 100);
+      if (!isZoom(zoom)) return reply.code(400).send({ error: 'Invalid zoom' });
       const row = (await library.list()).find((item) => item.id === id);
       if (!row) return reply.code(404).send({ error: 'Wallpaper not found' });
       try {
@@ -97,7 +100,14 @@ export function registerWallpaperRoutes(app: FastifyInstance, dataDir: string) {
           warmth = value('warmth', 0);
         let image = sharp(library.file(id))
           .extract(
-            cropRectangle(row.width, row.height, device as Device, value('x', 50), value('y', 50)),
+            cropRectangle(
+              row.width,
+              row.height,
+              device as Device,
+              value('x', 50),
+              value('y', 50),
+              zoom,
+            ),
           )
           .resize(q.thumb === '1' ? 360 : profile.width, q.thumb === '1' ? 780 : profile.height);
         if (q.grayscale === '1') image = image.grayscale();
@@ -124,4 +134,16 @@ export function registerWallpaperRoutes(app: FastifyInstance, dataDir: string) {
       }
     },
   );
+  // The whole photo at preview size lets the browser move and zoom the crop instantly while
+  // the exact render for the new framing loads.
+  app.get<{ Params: { id: string } }>('/api/wallpapers/:id/source', async (request, reply) => {
+    const { id } = request.params;
+    if (!isWallpaperId(id) || !(await library.list()).some((item) => item.id === id))
+      return reply.code(404).send({ error: 'Wallpaper not found' });
+    reply.type('image/jpeg').header('Cache-Control', 'private, max-age=86400');
+    return sharp(library.file(id))
+      .resize(1600, 1600, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toBuffer();
+  });
 }

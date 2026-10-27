@@ -1,0 +1,78 @@
+[
+  {
+    "id": "spruce-woods-aurora",
+    "name": "Aurora over Spruce Woods",
+    "description": "Magenta and green northern lights rippling above a dark Manitoba treeline.",
+    "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/2/28/Aurora_Borealis_over_Spruce_Woods%2C_Manitoba.webm",
+    "start": 0,
+    "seconds": 19,
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:Aurora_Borealis_over_Spruce_Woods,_Manitoba.webm",
+      "author": "HachiBoy",
+      "license": "CC BY 4.0"
+    },
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "zoom": 1.15,
+    "focusY": 0.25
+  },
+  {
+    "id": "sea-nettles",
+    "name": "Sea nettles",
+    "description": "Pacific sea nettles drifting through deep blue water at Monterey Bay Aquarium.",
+    "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/1/12/Jellyfish_at_Monterey_Bay_Aquarium_6_2024-01-11.webm",
+    "start": 0,
+    "seconds": 14,
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:Jellyfish_at_Monterey_Bay_Aquarium_6_2024-01-11.webm",
+      "author": "Fastily",
+      "license": "CC BY-SA 4.0"
+    },
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  {
+    "id": "milky-way-japan",
+    "name": "Milky Way night",
+    "description": "The Milky Way arching over a lone tree on a Japanese hillside.",
+    "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/8/80/JAPAN_Milk_Way_4K_-_Beautiful_Star_and_Sky_at_Night_Time_Lapse.webm",
+    "start": 111,
+    "seconds": 12,
+    "source": {
+      "url": "https://commons.wikimedia.org/wiki/File:JAPAN_Milk_Way_4K_-_Beautiful_Star_and_Sky_at_Night_Time_Lapse.webm",
+      "author": "S3 Channel",
+      "license": "CC BY 3.0"
+    },
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+    "zoom": 1.2
+  },
+  {
+    "id": "perpetual-ocean",
+    "name": "Perpetual Ocean",
+    "description": "NASA's painterly swirl of Gulf Stream currents, traced from real ocean data.",
+    "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/f/fc/Perpetual_Ocean_2-_Western_Boundary_Currents_%28SVS5425_-_perpetual_ocean2_CLOSE_095_beauty_600m_and_below_2160p60%29.webm",
+    "start": 4,
+    "seconds": 20,
+    "focusX": 0.62,
+    "source": {
+      "url": "https://svs.gsfc.nasa.gov/5425/",
+      "author": "NASA Scientific Visualization Studio",
+      "license": "Public domain (NASA)"
+    },
+    "licenseUrl": "https://www.nasa.gov/nasa-brand-center/images-and-media/"
+  },
+  {
+    "id": "living-sun",
+    "name": "Living Sun",
+    "description": "Four hours of the Sun's churning corona from NASA's Solar Dynamics Observatory.",
+    "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/d/d2/SDO_Sun_This_Week_%28SVS5577_-_4hr_2048p30%29.webm",
+    "start": 0,
+    "seconds": 20,
+    "zoom": 1.1,
+    "focusY": 0.4,
+    "source": {
+      "url": "https://svs.gsfc.nasa.gov/5577/",
+      "author": "NASA Scientific Visualization Studio / SDO",
+      "license": "Public domain (NASA)"
+    },
+    "licenseUrl": "https://www.nasa.gov/nasa-brand-center/images-and-media/"
+  }
+]

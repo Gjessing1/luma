@@ -1,13 +1,43 @@
-import { useState } from 'react';
-import { cropRectangle, devices, type Rotation, type Wallpaper } from '@luma/core/wallpaper';
-import { imageUrl } from './wallpaper-client';
+import { useEffect, useRef, useState, type ReactNode, type PointerEvent } from 'react';
+import {
+  cropRectangle,
+  devices,
+  maxZoom,
+  type Rotation,
+  type Wallpaper,
+  type WallpaperStyle,
+} from '@luma/core/wallpaper';
+import { imageUrl, sourceUrl } from './wallpaper-client';
 import { S24HomeOverlay } from './S24HomeOverlay';
 
 type Surface = 'home' | 'widgets' | 'work' | 'lock' | 'wallpaper';
-export function PhonePreview({ wallpaper, config }: { wallpaper: Wallpaper; config: Rotation }) {
+type Frame = Pick<WallpaperStyle, 'focalX' | 'focalY' | 'zoom'>;
+interface Gesture {
+  start: Frame;
+  points: Map<number, { x: number; y: number }>;
+  origin: Map<number, { x: number; y: number }>;
+}
+interface Props {
+  wallpaper: Wallpaper;
+  config: Rotation;
+  onFrame?: (frame: Frame) => void;
+  children?: ReactNode;
+}
+export function PhonePreview({ wallpaper, config, onFrame, children }: Props) {
   const [surface, setSurface] = useState<Surface>('home');
   const [agendaRows, setAgendaRows] = useState(0);
+  const phone = useRef<HTMLDivElement>(null);
+  const gesture = useRef<Gesture | null>(null);
+  const target = imageUrl(wallpaper.id, config);
+  // Full renders are large, so request one only once a drag or slider pauses.
+  const [exactSrc, setExactSrc] = useState(target);
+  const [loadedSrc, setLoadedSrc] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => setExactSrc(target), 250);
+    return () => clearTimeout(timer);
+  }, [target]);
   const profile = devices[config.device];
+  const zoom = config.zoom ?? 100;
   const samsungPage =
     config.device === 's24-ultra' &&
     (surface === 'home' || surface === 'widgets' || surface === 'work');
@@ -23,6 +53,7 @@ export function PhonePreview({ wallpaper, config }: { wallpaper: Wallpaper; conf
     config.device,
     config.focalX,
     config.focalY,
+    zoom,
   );
   const now = new Date();
   let caption = 'Example layout · your launcher may differ';
@@ -31,6 +62,79 @@ export function PhonePreview({ wallpaper, config }: { wallpaper: Wallpaper; conf
   } else if (samsungPage) {
     caption = 'Your S24 Ultra layout · measured from your screenshots; content approximated';
   }
+  function pointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (!onFrame || event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const point = { x: event.clientX, y: event.clientY };
+    const points = new Map(gesture.current?.points);
+    points.set(event.pointerId, point);
+    // Restart from the current framing whenever a finger joins, so pinch and drag never jump.
+    gesture.current = {
+      start: { focalX: config.focalX, focalY: config.focalY, zoom },
+      points,
+      origin: new Map(points),
+    };
+  }
+  function pointerMove(event: PointerEvent<HTMLDivElement>) {
+    const active = gesture.current;
+    if (!onFrame || !active?.points.has(event.pointerId) || !phone.current) return;
+    active.points.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const width = phone.current.clientWidth;
+    const [first, second] = [...active.points.keys()];
+    if (second !== undefined) {
+      const ratio =
+        distance(active.points.get(first!)!, active.points.get(second)!) /
+        Math.max(1, distance(active.origin.get(first!)!, active.origin.get(second)!));
+      onFrame({
+        ...active.start,
+        zoom: clamp(Math.round((active.start.zoom ?? 100) * ratio), 100, maxZoom),
+      });
+      return;
+    }
+    const from = active.origin.get(event.pointerId)!;
+    const startCrop = cropRectangle(
+      wallpaper.width,
+      wallpaper.height,
+      config.device,
+      active.start.focalX,
+      active.start.focalY,
+      active.start.zoom,
+    );
+    // Dragging the picture right reveals more of its left side, like moving a photo by hand.
+    const sourcePerPixel = startCrop.width / width;
+    onFrame({
+      ...active.start,
+      focalX: pan(
+        active.start.focalX,
+        event.clientX - from.x,
+        sourcePerPixel,
+        wallpaper.width - startCrop.width,
+      ),
+      focalY: pan(
+        active.start.focalY,
+        event.clientY - from.y,
+        sourcePerPixel,
+        wallpaper.height - startCrop.height,
+      ),
+    });
+  }
+  function pointerEnd(event: PointerEvent<HTMLDivElement>) {
+    const active = gesture.current;
+    if (!active) return;
+    active.points.delete(event.pointerId);
+    if (active.points.size === 0) gesture.current = null;
+    else
+      gesture.current = {
+        start: { focalX: config.focalX, focalY: config.focalY, zoom },
+        points: active.points,
+        origin: new Map(active.points),
+      };
+  }
+  const blurPixels = ((config.effects.blur / 5) * (phone.current?.clientWidth ?? 210)) / 1440;
+  const filters = [`brightness(${1 - config.effects.dim / 100})`];
+  if (config.effects.grayscale) filters.push('grayscale(1)');
+  if (config.effects.warmth > 0) filters.push(`sepia(${config.effects.warmth / 250})`);
+  if (blurPixels > 0) filters.push(`blur(${blurPixels}px)`);
   return (
     <div className="preview-stage">
       <div className="preview-surfaces" role="group" aria-label="Preview screen">
@@ -53,8 +157,38 @@ export function PhonePreview({ wallpaper, config }: { wallpaper: Wallpaper; conf
           <span>Approximate growth downward · top and sides stay fixed</span>
         </label>
       )}
-      <div className={`phone-preview ${config.device}`} aria-label={`${surface} screen preview`}>
-        <img src={imageUrl(wallpaper.id, config)} alt={wallpaper.name} />
+      <div
+        ref={phone}
+        className={`phone-preview ${config.device} ${onFrame ? 'movable' : ''}`}
+        aria-label={`${surface} screen preview`}
+        onPointerDown={pointerDown}
+        onPointerMove={pointerMove}
+        onPointerUp={pointerEnd}
+        onPointerCancel={pointerEnd}
+      >
+        <img
+          className="exact-render"
+          src={exactSrc}
+          alt={wallpaper.name}
+          draggable={false}
+          onLoad={() => setLoadedSrc(exactSrc)}
+        />
+        {/* The whole photo, positioned like the crop, answers drags instantly; the exact
+            render replaces it once it has loaded. */}
+        <img
+          className="source-layer"
+          src={sourceUrl(wallpaper.id)}
+          alt=""
+          draggable={false}
+          hidden={loadedSrc === target}
+          style={{
+            width: `${(wallpaper.width / crop.width) * 100}%`,
+            height: `${(wallpaper.height / crop.height) * 100}%`,
+            left: `${(-crop.left / crop.width) * 100}%`,
+            top: `${(-crop.top / crop.height) * 100}%`,
+            filter: filters.join(' '),
+          }}
+        />
         {samsungPage && <S24HomeOverlay page={surface} agendaRows={agendaRows} />}
         {surface !== 'wallpaper' && !samsungPage && (
           <>
@@ -145,6 +279,7 @@ export function PhonePreview({ wallpaper, config }: { wallpaper: Wallpaper; conf
           </>
         )}
       </div>
+      {children}
       <p>
         {profile.width} × {profile.height} · {profile.name}
       </p>
@@ -159,4 +294,14 @@ export function PhonePreview({ wallpaper, config }: { wallpaper: Wallpaper; conf
       ) : null}
     </div>
   );
+}
+function distance(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+function pan(start: number, pixels: number, sourcePerPixel: number, slack: number): number {
+  if (slack <= 0) return start;
+  return clamp(Math.round((start - ((pixels * sourcePerPixel) / slack) * 100) * 10) / 10, 0, 100);
 }
