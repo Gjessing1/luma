@@ -3,6 +3,23 @@
 A private wallpaper library and rotation app for our Galaxy S24 Ultra and Galaxy S25.
 The library is shared; each phone has its own playlist and offline schedule.
 
+<table>
+  <tr>
+    <td align="center"><img src="assets/screenshots/library.png" width="200" alt="Shared wallpaper library with favorites and playlist checkmarks"></td>
+    <td align="center"><img src="assets/screenshots/add-to-playlist.png" width="200" alt="Add to playlist sheet with an existing playlist ticked"></td>
+    <td align="center"><img src="assets/screenshots/playlist.png" width="200" alt="Playlist with four reorderable wallpapers and home and lock screen targets"></td>
+    <td align="center"><img src="assets/screenshots/preview.png" width="200" alt="Wallpaper preview on a Galaxy S24 Ultra home screen mock-up with frame and style tools"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Library</sub></td>
+    <td align="center"><sub>Add to playlist</sub></td>
+    <td align="center"><sub>Playlist</sub></td>
+    <td align="center"><sub>Home screen preview</sub></td>
+  </tr>
+</table>
+
+<sub>Screenshots: Luma 0.1.5 (commit <code>981ef8b</code>), taken 28 October 2026 with the built-in starter wallpapers.</sub>
+
 - Upload JPEG, PNG, WebP and AVIF images, or import six original starter wallpapers.
 - Search, favorite, rename, preview, download and delete wallpapers.
 - Build and reorder a personal playlist; shuffle without immediate repeats.
