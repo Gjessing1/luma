@@ -39,7 +39,7 @@ jobs:
       packages: write # not sufficient alone on this instance; push uses REGISTRY_TOKEN
     env:
       DOCKER_BUILDKIT: '1' # required for the Dockerfile's RUN --mount=type=cache
-      DEPLOY_DIR: /home/gjessing/docker/luma
+      DEPLOY_DIR: /home/gjessing/docker/Productivity/luma
     steps:
       - uses: actions/checkout@v4
 

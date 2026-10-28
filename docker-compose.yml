@@ -1,4 +1,4 @@
-# Reference deploy file. The live copy lives in /home/gjessing/docker/luma
+# Reference deploy file. The live copy lives in /home/gjessing/docker/Productivity/luma
 # (compose + .env), created by scripts/host-setup.sh; CI runs
 # `docker compose pull && up -d` there on every push to main.
 services:
