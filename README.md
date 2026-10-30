@@ -110,7 +110,7 @@ it is not intended to be exposed directly without authentication.
 
 Pushes to `main` build, smoke-test and publish
 `git.gjessing.io/gjessing1/luma-backend:latest`, then redeploy the compose stack in
-`~/docker/Productivity/luma`. The CI deploy helper reads only this app's compose/env files through
+`~/docker/productivity/luma`. The CI deploy helper reads only this app's compose/env files through
 the host Docker daemon and requires no changes to the shared runner configuration.
 The compose network uses an explicit subnet because this host's default address
 pools are exhausted. Health: `GET /api/health` reports the running git SHA.

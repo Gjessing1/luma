@@ -2,7 +2,7 @@
 # Read only this app's compose/env files through the host daemon. This avoids
 # adding a per-app bind mount to the shared Forgejo runner configuration.
 set -euo pipefail
-source_dir="${DEPLOY_DIR:-/home/gjessing/docker/Productivity/luma}"
+source_dir="${DEPLOY_DIR:-/home/gjessing/docker/productivity/luma}"
 scratch_dir="$(mktemp -d)"
 trap 'rm -rf "$scratch_dir"' EXIT
 chmod 700 "$scratch_dir"

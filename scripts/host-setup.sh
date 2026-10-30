@@ -2,7 +2,7 @@
 # Creates only Luma's own deploy/data directories. Caddy/Homepage changes are separate.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
-deploy_dir="$HOME/docker/Productivity/luma"
+deploy_dir="$HOME/docker/productivity/luma"
 mkdir -p "$deploy_dir" "$HOME/data/luma"
 if [[ ! -f "$deploy_dir/docker-compose.yml" ]]; then cp "$root/docker-compose.yml" "$deploy_dir/docker-compose.yml"; fi
 if [[ ! -f "$deploy_dir/.env" ]]; then
